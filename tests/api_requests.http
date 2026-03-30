@@ -1,0 +1,76 @@
+@baseUrl = http://localhost:5000
+@token = YOUR_JWT_TOKEN_HERE
+
+### AUTHENTICATION
+
+### Register User
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "password": "password123"
+}
+
+### Login User
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "john@example.com",
+  "password": "password123"
+}
+
+
+### PRODUCTS
+
+### Get All Products
+GET {{baseUrl}}/api/products
+
+### Get Best Sellers
+GET {{baseUrl}}/api/products/best
+
+### Get Single Product
+GET {{baseUrl}}/api/products/67eb7a8f9d0c6b1234567890
+
+
+### CART (Auth Required)
+
+### Get Cart
+GET {{baseUrl}}/api/cart
+Authorization: Bearer {{token}}
+
+### Add to Cart
+POST {{baseUrl}}/api/cart
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "productId": "67eb7a8f9d0c6b1234567890",
+    "quantity": 2
+}
+
+### Update Cart Item
+PUT {{baseUrl}}/api/cart/67eb7a8f9d0c6b1234567890
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "quantity": 5
+}
+
+### Remove from Cart
+DELETE {{baseUrl}}/api/cart/67eb7a8f9d0c6b1234567890
+Authorization: Bearer {{token}}
+
+
+### ORDERS (Auth Required)
+
+### Create Order (Uses current cart)
+POST {{baseUrl}}/api/orders
+Authorization: Bearer {{token}}
+
+### Get My Orders
+GET {{baseUrl}}/api/orders
+Authorization: Bearer {{token}}

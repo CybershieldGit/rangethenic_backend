@@ -1,6 +1,6 @@
-# RakaRituals API Endpoints
+# RakaRituals API Documentation
 
-This document provides a comprehensive list of all API endpoints for testing in Postman.
+This document provide a comprehensive guide for testing all API endpoints.
 
 **Base URL:** `http://localhost:5000`
 
@@ -9,50 +9,158 @@ This document provides a comprehensive list of all API endpoints for testing in 
 ## 🔐 Authentication
 **Base Path:** `/api/auth`
 
-| Method | Endpoint | Description | Auth Required |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/api/auth/register` | Register a new user | None |
-| `POST` | `/api/auth/login` | Login and get JWT Token | None |
+### 1. Register User
+- **URL:** `/api/auth/register`
+- **Method:** `POST`
+- **Auth Required:** No
+- **Body:**
+```json
+{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "password": "password123"
+}
+```
+
+### 2. Login User
+- **URL:** `/api/auth/login`
+- **Method:** `POST`
+- **Auth Required:** No
+- **Body:**
+```json
+{
+  "email": "john@example.com",
+  "password": "password123"
+}
+```
+*Note: Copy the `token` from the response for subsequent requests.*
+
+> [!IMPORTANT]
+> **Test Admin Credentials:**
+> - **Email:** `admin@example.com`
+> - **Password:** `admin123`
+> Use these to login and get an admin token for product management.
 
 ---
 
 ## 📦 Products
 **Base Path:** `/api/products`
 
-| Method | Endpoint | Description | Auth Required |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/api/products` | Get all products | None |
-| `GET` | `/api/products/best` | Get best-selling products | None |
-| `GET` | `/api/products/:id` | Get product by ID | None |
-| `POST` | `/api/products` | Create a new product | Admin |
-| `PUT` | `/api/products/:id` | Update a product | Admin |
-| `DELETE` | `/api/products/:id` | Delete a product | Admin |
+### 1. Get All Products
+- **URL:** `/api/products?keyword=ritual&pageNumber=1`
+- **Method:** `GET`
+- **Auth Required:** No
+
+### 2. Get Best Sellers
+- **URL:** `/api/products/best`
+- **Method:** `GET`
+- **Auth Required:** No
+
+### 3. Get Product By ID
+- **URL:** `/api/products/:id`
+- **Method:** `GET`
+- **Auth Required:** No
+
+### 4. Create Product (Admin Only)
+- **URL:** `/api/products`
+- **Method:** `POST`
+- **Auth Required:** Yes (Admin Token)
+- **Body:**
+```json
+{
+  "name": "Raka Special Ritual",
+  "price": 49.99,
+  "description": "Premium ritual experience.",
+  "image": "/images/sample.jpg",
+  "category": "Rituals",
+  "countInStock": 10,
+  "isBestSeller": true
+}
+```
 
 ---
 
 ## 🛒 Shopping Cart
 **Base Path:** `/api/cart`
 
-| Method | Endpoint | Description | Auth Required |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/api/cart` | Get user's cart | User (Protect) |
-| `POST` | `/api/cart` | Add item to cart | User (Protect) |
-| `PUT` | `/api/cart/:productId` | Update cart item quantity | User (Protect) |
-| `DELETE` | `/api/cart/:productId` | Remove item from cart | User (Protect) |
+### 1. Get User Cart
+- **URL:** `/api/cart`
+- **Method:** `GET`
+- **Auth Required:** Yes (Bearer Token)
+
+### 2. Add to Cart
+- **URL:** `/api/cart`
+- **Method:** `POST`
+- **Auth Required:** Yes (Bearer Token)
+- **Body:**
+```json
+{
+  "productId": "PRODUCT_ID_HERE",
+  "quantity": 2
+}
+```
+
+### 3. Update Cart Item
+- **URL:** `/api/cart/:productId`
+- **Method:** `PUT`
+- **Auth Required:** Yes (Bearer Token)
+- **Body:**
+```json
+{
+  "quantity": 5
+}
+```
 
 ---
 
 ## 🧾 Orders
 **Base Path:** `/api/orders`
 
-| Method | Endpoint | Description | Auth Required |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/api/orders` | Place a new order | User (Protect) |
-| `GET` | `/api/orders` | Get logged-in user's orders | User (Protect) |
+### 1. Place Order
+- **URL:** `/api/orders`
+- **Method:** `POST`
+- **Auth Required:** Yes (Bearer Token)
+- **Logics:**
+  - Fetches items from user's current cart.
+  - Calculates total price server-side for security.
+  - Clears the cart upon success.
+
+### 2. Get My Orders
+- **URL:** `/api/orders`
+- **Method:** `GET`
+- **Auth Required:** Yes (Bearer Token)
 
 ---
 
-> [!TIP]
-> **Postman Setup:**
-> 1. Set the `Authorization` header to `Bearer <YOUR_TOKEN>` for protected routes.
-> 2. For `POST` and `PUT` requests, ensure `Content-Type` is set to `application/json` in the headers.
+## 🛠️ Testing Instructions
+
+### Using Postman/Insomnia
+1. Set the **Authorization** header to `Bearer <YOUR_TOKEN>`.
+2. Set **Content-Type** to `application/json`.
+3. Use the raw JSON bodies provided above.
+
+### Using VS Code (REST Client Extension)
+Create a `.http` file with the following content:
+```http
+@baseUrl = http://localhost:5000
+@token = YOUR_JWT_TOKEN_HERE
+
+### Register
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "name": "Test User",
+  "email": "test@test.com",
+  "password": "password"
+}
+
+### Login
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@test.com",
+  "password": "password"
+}
+```
