@@ -2,7 +2,7 @@
 
 This document provide a comprehensive guide for testing all API endpoints.
 
-**Base URL:** `http://localhost:5000`
+**Base URL:** `http://localhost:5005`
 
 ---
 
@@ -245,7 +245,7 @@ This document provide a comprehensive guide for testing all API endpoints.
 ### Using VS Code (REST Client Extension)
 Create a `.http` file with the following content:
 ```http
-@baseUrl = http://localhost:5000
+@baseUrl = http://localhost:5005
 @token = YOUR_JWT_TOKEN_HERE
 
 ### Register
