@@ -3,6 +3,7 @@ import Cart from '../models/Cart.js';
 import Product from '../models/Product.js';
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
+import { getIO } from '../utils/socket.js';
 
 // Initialize Razorpay
 const getRazorpayInstance = () => {
@@ -13,6 +14,46 @@ const getRazorpayInstance = () => {
     key_id: process.env.RAZORPAY_API_KEY || '',
     key_secret: process.env.RAZORPAY_API_SECRET || '',
   });
+};
+
+// Emit WebSocket event with populated order data
+const emitOrderUpdate = async (orderId, eventName) => {
+  try {
+    const io = getIO();
+    if (!io) {
+      console.warn("Socket.io instance is not initialized yet.");
+      return;
+    }
+
+    const populatedOrder = await Order.findById(orderId)
+      .populate('user', 'id name email')
+      .populate('orderItems.product');
+
+    if (populatedOrder) {
+      io.emit(eventName, populatedOrder);
+      console.log(`WebSocket event emitted: ${eventName} for order ${orderId}`);
+    }
+  } catch (error) {
+    console.error(`Error emitting WebSocket event ${eventName}:`, error);
+  }
+};
+
+// Emit real-time stock updates for the product items
+const emitProductStockUpdates = async (orderItems) => {
+  try {
+    const io = getIO();
+    if (!io) return;
+
+    for (const item of orderItems) {
+      const updatedProduct = await Product.findById(item.product);
+      if (updatedProduct) {
+        io.emit('productUpdated', updatedProduct);
+        console.log(`WebSocket: Emitted productUpdated for stock change of product ${updatedProduct._id}`);
+      }
+    }
+  } catch (error) {
+    console.error("Error emitting stock update socket events:", error);
+  }
 };
 
 // @desc    Create new order
@@ -85,9 +126,15 @@ const createOrder = async (req, res) => {
         });
       }
 
+      // Emit real-time stock updates for the ordered products
+      await emitProductStockUpdates(orderItems);
+
       cart.items = [];
       await cart.save();
  
+      // Emit websocket event for new COD order
+      await emitOrderUpdate(order._id, 'orderCreated');
+
       return res.status(201).json({
         message: 'Order created successfully via Cash on Delivery!',
         order,
@@ -220,6 +267,9 @@ const verifyPayment = async (req, res) => {
       });
     }
 
+    // Emit real-time stock updates for the ordered products
+    await emitProductStockUpdates(order.orderItems);
+
     // Clear user cart
     const cart = await Cart.findOne({ user: req.user._id });
     if (cart) {
@@ -228,6 +278,9 @@ const verifyPayment = async (req, res) => {
     }
 
     const updatedOrder = await order.save();
+
+    // Emit websocket event for new online order (payment success means order is now confirmed)
+    await emitOrderUpdate(updatedOrder._id, 'orderCreated');
 
     res.json({
       message: 'Payment verified and captured successfully!',
@@ -258,14 +311,14 @@ const getAllOrders = async (req, res) => {
   }
 };
 
-// @desc    Update order delivery status (Admin only)
+// @desc    Update order delivery status and/or payment status (Admin only)
 // @route   PUT /api/orders/:id/status
 // @access  Private/Admin
 const updateOrderDeliveryStatus = async (req, res) => {
   try {
-    const { deliveryStatus } = req.body;
+    const { deliveryStatus, isPaid } = req.body;
 
-    if (!deliveryStatus || !['Placed', 'Dispatched', 'Delivered', 'Cancelled'].includes(deliveryStatus)) {
+    if (deliveryStatus && !['Placed', 'Dispatched', 'Delivered', 'Cancelled'].includes(deliveryStatus)) {
       return res.status(400).json({ message: 'Invalid delivery status value' });
     }
 
@@ -275,27 +328,52 @@ const updateOrderDeliveryStatus = async (req, res) => {
       return res.status(404).json({ message: 'Order not found' });
     }
 
-    order.deliveryStatus = deliveryStatus;
-    if (deliveryStatus === 'Dispatched') {
-      order.dispatchedAt = Date.now();
-    } else if (deliveryStatus === 'Delivered') {
-      if (!order.dispatchedAt) {
-        order.dispatchedAt = Date.now(); // fallback
-      }
-      order.deliveredAt = Date.now();
-    } else if (deliveryStatus === 'Cancelled') {
-      order.cancelReason = 'Cancelled by Admin';
-      order.cancelledAt = Date.now();
+    if (deliveryStatus) {
+      order.deliveryStatus = deliveryStatus;
+      if (deliveryStatus === 'Dispatched') {
+        order.dispatchedAt = Date.now();
+      } else if (deliveryStatus === 'Delivered') {
+        if (!order.dispatchedAt) {
+          order.dispatchedAt = Date.now(); // fallback
+        }
+        order.deliveredAt = Date.now();
+        
+        // If it is Cash on Delivery, mark as paid automatically when delivered
+        if (order.paymentMethod === 'COD') {
+          order.isPaid = true;
+          order.paidAt = Date.now();
+          order.paymentStatus = 'Success';
+        }
+      } else if (deliveryStatus === 'Cancelled') {
+        order.cancelledAt = Date.now();
 
-      // Restore stock for each item when admin cancels the order
-      for (const item of order.orderItems) {
-        await Product.findByIdAndUpdate(item.product, {
-          $inc: { countInStock: item.quantity },
-        });
+        // Restore stock for each item when admin cancels the order
+        for (const item of order.orderItems) {
+          await Product.findByIdAndUpdate(item.product, {
+            $inc: { countInStock: item.quantity },
+          });
+        }
+
+        // Emit real-time stock updates for the restored products
+        await emitProductStockUpdates(order.orderItems);
+      }
+    }
+
+    // Explicitly toggle isPaid (useful for manually marking COD as paid/unpaid)
+    if (isPaid !== undefined) {
+      order.isPaid = isPaid;
+      if (isPaid) {
+        order.paidAt = Date.now();
+        order.paymentStatus = 'Success';
+      } else {
+        order.paidAt = undefined;
+        order.paymentStatus = order.paymentMethod === 'COD' ? 'COD' : 'Pending';
       }
     }
 
     const updatedOrder = await order.save();
+    // Emit websocket event for order status change
+    await emitOrderUpdate(updatedOrder._id, 'orderUpdated');
     res.json(updatedOrder);
   } catch (error) {
     console.error('Error in updateOrderDeliveryStatus:', error);
@@ -337,7 +415,13 @@ const cancelOrder = async (req, res) => {
       });
     }
 
+    // Emit real-time stock updates for the restored products
+    await emitProductStockUpdates(order.orderItems);
+
     const updatedOrder = await order.save();
+
+    // Emit websocket event for order cancellation
+    await emitOrderUpdate(updatedOrder._id, 'orderUpdated');
 
     res.json({ message: 'Order cancelled successfully', order: updatedOrder });
   } catch (error) {

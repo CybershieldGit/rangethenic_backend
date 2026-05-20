@@ -1,4 +1,5 @@
 import Product from '../models/Product.js';
+import { getIO } from '../utils/socket.js';
 
 // @desc    Fetch all products
 // @route   GET /api/products
@@ -80,6 +81,13 @@ const createProduct = async (req, res) => {
   });
 
   const createdProduct = await product.save();
+
+  // Emit websocket event for product creation
+  const io = getIO();
+  if (io) {
+    io.emit('productCreated', createdProduct);
+  }
+
   res.status(201).json(createdProduct);
 };
 
@@ -112,6 +120,13 @@ const updateProduct = async (req, res) => {
       product.isCODAllowed = isCODAllowed !== undefined ? isCODAllowed : product.isCODAllowed;
 
       const updatedProduct = await product.save();
+
+      // Emit websocket event for product update
+      const io = getIO();
+      if (io) {
+        io.emit('productUpdated', updatedProduct);
+      }
+
       res.json(updatedProduct);
     } else {
       res.status(404).json({ message: 'Product not found' });
@@ -131,6 +146,13 @@ const deleteProduct = async (req, res) => {
 
     if (product) {
       await product.deleteOne();
+
+      // Emit websocket event for product deletion
+      const io = getIO();
+      if (io) {
+        io.emit('productDeleted', req.params.id);
+      }
+
       res.json({ message: 'Product removed' });
     } else {
       res.status(404).json({ message: 'Product not found' });
