@@ -4,6 +4,7 @@ import Product from '../models/Product.js';
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import { getIO } from '../utils/socket.js';
+import { getReservedStock } from '../utils/stockHelper.js';
 
 // Initialize Razorpay
 const getRazorpayInstance = () => {
@@ -47,8 +48,12 @@ const emitProductStockUpdates = async (orderItems) => {
     for (const item of orderItems) {
       const updatedProduct = await Product.findById(item.product);
       if (updatedProduct) {
-        io.emit('productUpdated', updatedProduct);
-        console.log(`WebSocket: Emitted productUpdated for stock change of product ${updatedProduct._id}`);
+        const reservedCount = await getReservedStock(item.product);
+        const productObj = updatedProduct.toObject();
+        productObj.reservedCount = reservedCount;
+        
+        io.emit('productUpdated', productObj);
+        console.log(`WebSocket: Emitted productUpdated for stock change of product ${updatedProduct._id}, reservedCount: ${reservedCount}`);
       }
     }
   } catch (error) {
