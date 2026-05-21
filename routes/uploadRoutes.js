@@ -8,23 +8,23 @@ const router = express.Router();
 const storage = multer.memoryStorage();
 const upload = multer({ 
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // limit file size to 5MB
+  limits: { fileSize: 50 * 1024 * 1024 }, // limit file size to 50MB
   fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
+    if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) {
       cb(null, true);
     } else {
-      cb(new Error('Only image files are permitted!'), false);
+      cb(new Error('Only image and video files are permitted!'), false);
     }
   }
 });
 
-// @desc    Upload an image to Cloudinary
+// @desc    Upload an image or video to Cloudinary
 // @route   POST /api/upload
 // @access  Public (or Admin protected)
 router.post('/', upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ message: 'Please select an image file to upload.' });
+      return res.status(400).json({ message: 'Please select an image or video file to upload.' });
     }
 
     // Direct buffer upload to Cloudinary stream
@@ -46,7 +46,7 @@ router.post('/', upload.single('image'), async (req, res) => {
 
     const result = await uploadToCloudinary();
     res.status(200).json({ 
-      message: 'Image uploaded successfully.',
+      message: 'Media uploaded successfully.',
       url: result.secure_url 
     });
   } catch (error) {

@@ -5,11 +5,32 @@ import Product from '../models/Product.js';
 // @route   GET /api/cart
 // @access  Private
 const getUserCart = async (req, res) => {
-  const cart = await Cart.findOne({ user: req.user._id }).populate('items.product');
-  if (cart) {
-    res.json(cart);
-  } else {
-    res.json({ user: req.user._id, items: [] });
+  try {
+    const cart = await Cart.findOne({ user: req.user._id }).populate('items.product');
+    if (cart) {
+      // Check if any product is null (deleted product)
+      const hasDeletedProducts = cart.items.some(item => item.product === null);
+      if (hasDeletedProducts) {
+        const rawCart = await Cart.findOne({ user: req.user._id });
+        if (rawCart) {
+          const activeItemIds = cart.items
+            .filter(item => item.product !== null)
+            .map(item => item._id.toString());
+          rawCart.items = rawCart.items.filter(item => activeItemIds.includes(item._id.toString()));
+          await rawCart.save();
+          
+          // Return the populated version of clean cart
+          const cleanCart = await Cart.findOne({ user: req.user._id }).populate('items.product');
+          return res.json(cleanCart);
+        }
+      }
+      res.json(cart);
+    } else {
+      res.json({ user: req.user._id, items: [] });
+    }
+  } catch (error) {
+    console.error('Error in getUserCart:', error);
+    res.status(500).json({ message: error.message });
   }
 };
 
