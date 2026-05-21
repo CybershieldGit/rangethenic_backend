@@ -14,6 +14,7 @@ import userRoutes from './routes/userRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
 import categoryRoutes from './routes/categoryRoutes.js';
 
+// SMTP environment reload trigger - force restart (updated password)
 dotenv.config();
 
 connectDB();

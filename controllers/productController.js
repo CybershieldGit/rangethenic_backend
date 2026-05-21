@@ -130,6 +130,11 @@ const updateProduct = async (req, res) => {
     const product = await Product.findById(req.params.id);
 
     if (product) {
+      // Check if product belongs to this admin
+      if (product.user && product.user.toString() !== req.user._id.toString()) {
+        res.status(403);
+        throw new Error('Not authorized to modify this product');
+      }
       product.name = name || product.name;
       product.price = price || product.price;
       product.description = description || product.description;
@@ -177,6 +182,11 @@ const deleteProduct = async (req, res) => {
     const product = await Product.findById(req.params.id);
 
     if (product) {
+      // Check if product belongs to this admin
+      if (product.user && product.user.toString() !== req.user._id.toString()) {
+        res.status(403);
+        throw new Error('Not authorized to delete this product');
+      }
       await product.deleteOne();
 
       // Emit websocket event for product deletion
@@ -195,6 +205,51 @@ const deleteProduct = async (req, res) => {
   }
 };
 
+// @desc    Fetch admin's own products
+// @route   GET /api/products/admin
+// @access  Private/Admin
+const getAdminProducts = async (req, res) => {
+  try {
+    const pageSize = 8;
+    const page = Number(req.query.pageNumber) || 1;
+
+    const filter = { user: req.user._id };
+
+    if (req.query.keyword) {
+      filter.$or = [
+        { name: { $regex: req.query.keyword, $options: 'i' } },
+        { description: { $regex: req.query.keyword, $options: 'i' } },
+        { category: { $regex: req.query.category, $options: 'i' } },
+      ];
+    }
+
+    if (req.query.category) {
+      filter.category = { $regex: req.query.category, $options: 'i' };
+    }
+
+    const count = await Product.countDocuments(filter);
+    const products = await Product.find(filter)
+      .limit(pageSize)
+      .skip(pageSize * (page - 1));
+
+    // Get reserved stocks for these products
+    const productIds = products.map(p => p._id);
+    const reservedMap = await getReservedStocksForProducts(productIds);
+    
+    // Map products to include reservedCount
+    const productsWithReserved = products.map(p => {
+      const pObj = p.toObject();
+      pObj.reservedCount = reservedMap[p._id.toString()] || 0;
+      return pObj;
+    });
+
+    res.json({ products: productsWithReserved, page, pages: Math.ceil(count / pageSize) });
+  } catch (error) {
+    console.error('Error in getAdminProducts:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 export {
   getProducts,
   getProductById,
@@ -202,4 +257,5 @@ export {
   createProduct,
   updateProduct,
   deleteProduct,
+  getAdminProducts,
 };
