@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import User from '../models/User.js';
+import OTP from '../models/OTP.js';
 import generateToken from '../utils/generateToken.js';
 import sendEmail from '../utils/sendEmail.js';
 
@@ -8,9 +9,15 @@ import sendEmail from '../utils/sendEmail.js';
 // @access  Public
 const registerUser = async (req, res, next) => {
   try {
-    const { name, email, password, isAdmin } = req.body;
+    const { name, email, password, isAdmin, otp } = req.body;
 
     const normalizedEmail = email ? email.toLowerCase().trim() : '';
+
+    if (!otp) {
+      res.status(400);
+      throw new Error('Please provide OTP for email verification');
+    }
+
     const userExists = await User.findOne({ email: normalizedEmail });
 
     if (userExists) {
@@ -18,14 +25,31 @@ const registerUser = async (req, res, next) => {
       throw new Error('User already exists');
     }
 
+    const targetIsAdmin = isAdmin === true || isAdmin === 'true';
+
+    // Verify OTP
+    const otpRecord = await OTP.findOne({ email: normalizedEmail });
+    if (!otpRecord || otpRecord.otp !== otp) {
+      res.status(400);
+      throw new Error('Invalid or expired OTP');
+    }
+
+    if (otpRecord.isAdmin !== targetIsAdmin) {
+      res.status(400);
+      throw new Error('OTP role mismatch');
+    }
+
     const user = await User.create({
       name,
-      email,
+      email: normalizedEmail,
       password,
-      isAdmin: isAdmin || false,
+      isAdmin: targetIsAdmin,
     });
 
     if (user) {
+      // Delete the OTP record after successful registration
+      await OTP.deleteOne({ email: normalizedEmail });
+
       res.status(201).json({
         _id: user._id,
         name: user.name,
@@ -42,17 +66,90 @@ const registerUser = async (req, res, next) => {
   }
 };
 
+// @desc    Send OTP to email
+// @route   POST /api/auth/send-otp
+// @access  Public
+const sendOTP = async (req, res, next) => {
+  try {
+    const { email, isAdmin } = req.body;
+
+    if (!email) {
+      res.status(400);
+      throw new Error('Please provide an email address');
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+    const userExists = await User.findOne({ email: normalizedEmail });
+
+    if (userExists) {
+      res.status(400);
+      throw new Error('User already exists');
+    }
+
+    const targetIsAdmin = isAdmin === true || isAdmin === 'true';
+
+    // Generate 6-digit numeric OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    console.log(otp, "otp")
+
+    // Store OTP in database (overwrite if existing)
+    await OTP.findOneAndUpdate(
+      { email: normalizedEmail },
+      { otp, isAdmin: targetIsAdmin },
+      { upsert: true, new: true }
+    );
+
+    const message = `Your RakaRituals email verification OTP code is: ${otp}. It is valid for 10 minutes.`;
+
+    const htmlMessage = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #dcd4cb; border-radius: 8px;">
+        <h2 style="color: #2b2622; font-family: serif; border-bottom: 1px solid #dcd4cb; padding-bottom: 10px; text-align: center;">Email Verification OTP</h2>
+        <p style="color: #6f6a65; font-size: 14px; line-height: 1.6; text-align: center;">
+          Thank you for starting your registration with RakaRituals. Please use the following One-Time Password (OTP) to verify your email:
+        </p>
+        <div style="margin: 30px 0; text-align: center;">
+          <span style="background-color: #f7f6f1; border: 2px dashed #b89b5e; color: #2b2622; padding: 12px 24px; border-radius: 8px; font-weight: bold; font-size: 24px; letter-spacing: 5px; display: inline-block;">${otp}</span>
+        </div>
+        <p style="color: #6f6a65; font-size: 12px; line-height: 1.6; text-align: center;">
+          This OTP is valid for 10 minutes. If you did not request this OTP, please ignore this email.
+        </p>
+      </div>
+    `;
+
+    await sendEmail({
+      to: normalizedEmail,
+      subject: 'RakaRituals - Email Verification OTP',
+      text: message,
+      html: htmlMessage,
+    });
+
+    res.status(200).json({ success: true, message: 'OTP sent to email successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @desc    Auth user & get token
 // @route   POST /api/auth/login
 // @access  Public
 const authUser = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, isAdmin } = req.body;
 
     const normalizedEmail = email ? email.toLowerCase().trim() : '';
     const user = await User.findOne({ email: normalizedEmail });
 
     if (user && (await user.matchPassword(password))) {
+      const targetIsAdmin = isAdmin === true || isAdmin === 'true';
+      if (user.isAdmin !== targetIsAdmin) {
+        res.status(401);
+        throw new Error(
+          targetIsAdmin
+            ? 'Access denied. This account does not have Admin privileges.'
+            : 'Access denied. Admin accounts cannot log in as normal users.'
+        );
+      }
+
       res.json({
         _id: user._id,
         name: user.name,
@@ -214,4 +311,4 @@ const resetPassword = async (req, res, next) => {
   }
 };
 
-export { registerUser, authUser, forgotPassword, resetPassword };
+export { registerUser, authUser, forgotPassword, resetPassword, sendOTP };
