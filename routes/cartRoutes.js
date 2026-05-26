@@ -12,4 +12,4 @@ const router = express.Router();
 router.route('/').get(protect, getUserCart).post(protect, addToCart);
 router.route('/:productId').put(protect, updateCartItem).delete(protect, removeFromCart);
 
-export default router; 
+export default router;
