@@ -4,7 +4,6 @@ import Product from '../models/Product.js';
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import { getIO } from '../utils/socket.js';
-import { getReservedStock } from '../utils/stockHelper.js';
 
 // Initialize Razorpay
 const getRazorpayInstance = () => {
@@ -46,15 +45,10 @@ const emitProductStockUpdates = async (orderItems) => {
     if (!io) return;
 
     for (const item of orderItems) {
-      const productId = item.product._id || item.product;
-      const updatedProduct = await Product.findById(productId);
+      const updatedProduct = await Product.findById(item.product);
       if (updatedProduct) {
-        const reservedCount = await getReservedStock(productId);
-        const productObj = updatedProduct.toObject();
-        productObj.reservedCount = reservedCount;
-        
-        io.emit('productUpdated', productObj);
-        console.log(`WebSocket: Emitted productUpdated for stock change of product ${updatedProduct._id}, reservedCount: ${reservedCount}`);
+        io.emit('productUpdated', updatedProduct);
+        console.log(`WebSocket: Emitted productUpdated for stock change of product ${updatedProduct._id}`);
       }
     }
   } catch (error) {
@@ -127,12 +121,9 @@ const createOrder = async (req, res) => {
     if (paymentMethod === 'COD') {
       // Reduce stock for each ordered item
       for (const item of orderItems) {
-        const productId = item.product._id || item.product;
-        console.log(`COD Stock Reduction: Product ID ${productId}, Qty: ${item.quantity}`);
-        const updated = await Product.findByIdAndUpdate(productId, {
+        await Product.findByIdAndUpdate(item.product, {
           $inc: { countInStock: -item.quantity },
-        }, { new: true });
-        console.log(`COD Stock Reduction: Updated Stock for ${productId} is now ${updated ? updated.countInStock : 'null'}`);
+        });
       }
 
       // Emit real-time stock updates for the ordered products
@@ -271,12 +262,9 @@ const verifyPayment = async (req, res) => {
 
     // Reduce stock for each ordered item after successful payment
     for (const item of order.orderItems) {
-      const productId = item.product._id || item.product;
-      console.log(`Online Payment Stock Reduction: Product ID ${productId}, Qty: ${item.quantity}`);
-      const updated = await Product.findByIdAndUpdate(productId, {
+      await Product.findByIdAndUpdate(item.product, {
         $inc: { countInStock: -item.quantity },
-      }, { new: true });
-      console.log(`Online Payment Stock Reduction: Updated Stock for ${productId} is now ${updated ? updated.countInStock : 'null'}`);
+      });
     }
 
     // Emit real-time stock updates for the ordered products
@@ -309,34 +297,14 @@ const verifyPayment = async (req, res) => {
 // @access  Private/Admin
 const getAllOrders = async (req, res) => {
   try {
-    // Find all product IDs created by this admin
-    const adminProducts = await Product.find({ user: req.user._id }).select('_id');
-    const adminProductIds = adminProducts.map(p => p._id);
-
-    // Only show confirmed orders containing this admin's products
+    // Only show confirmed orders: COD orders OR paid online orders
     const orders = await Order.find({
-      'orderItems.product': { $in: adminProductIds },
       $or: [
         { paymentMethod: 'COD' },
         { paymentMethod: 'Online', isPaid: true },
       ]
-    })
-      .populate('user', 'id name email')
-      .populate('orderItems.product')
-      .sort({ createdAt: -1 });
-
-    // Filter order items and adjust total price for this admin
-    const filteredOrders = orders.map(order => {
-      const orderObj = order.toObject();
-      orderObj.orderItems = orderObj.orderItems.filter(item => 
-        item.product && item.product.user && item.product.user.toString() === req.user._id.toString()
-      );
-      // Recalculate total price for this admin's items in the order
-      orderObj.totalPrice = orderObj.orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-      return orderObj;
-    });
-
-    res.json(filteredOrders);
+    }).populate('user', 'id name email').sort({ createdAt: -1 });
+    res.json(orders);
   } catch (error) {
     console.error('Error in getAllOrders:', error);
     res.status(500).json({ message: error.message });
@@ -354,18 +322,10 @@ const updateOrderDeliveryStatus = async (req, res) => {
       return res.status(400).json({ message: 'Invalid delivery status value' });
     }
 
-    const order = await Order.findById(req.params.id).populate('orderItems.product');
+    const order = await Order.findById(req.params.id);
 
     if (!order) {
       return res.status(404).json({ message: 'Order not found' });
-    }
-
-    // Verify if admin has at least one product in the order
-    const hasAdminProduct = order.orderItems.some(item => 
-      item.product && item.product.user && item.product.user.toString() === req.user._id.toString()
-    );
-    if (!hasAdminProduct) {
-      return res.status(403).json({ message: 'Not authorized to update this order' });
     }
 
     if (deliveryStatus) {
@@ -387,13 +347,11 @@ const updateOrderDeliveryStatus = async (req, res) => {
       } else if (deliveryStatus === 'Cancelled') {
         order.cancelledAt = Date.now();
 
-        // Restore stock for this admin's items in the cancelled order
+        // Restore stock for each item when admin cancels the order
         for (const item of order.orderItems) {
-          if (item.product && item.product.user && item.product.user.toString() === req.user._id.toString()) {
-            await Product.findByIdAndUpdate(item.product._id || item.product, {
-              $inc: { countInStock: item.quantity },
-            });
-          }
+          await Product.findByIdAndUpdate(item.product, {
+            $inc: { countInStock: item.quantity },
+          });
         }
 
         // Emit real-time stock updates for the restored products
@@ -429,23 +387,14 @@ const updateOrderDeliveryStatus = async (req, res) => {
 const cancelOrder = async (req, res) => {
   try {
     const { cancelReason, cancelComments } = req.body;
-    const order = await Order.findById(req.params.id).populate('orderItems.product');
+    const order = await Order.findById(req.params.id);
 
     if (!order) {
       return res.status(404).json({ message: 'Order not found' });
     }
 
-    // Verify order belongs to logged-in user or user is an admin who owns at least one product in it
-    const isOwner = order.user.toString() === req.user._id.toString();
-    let isAuthorizedAdmin = false;
-
-    if (req.user.isAdmin) {
-      isAuthorizedAdmin = order.orderItems.some(item =>
-        item.product && item.product.user && item.product.user.toString() === req.user._id.toString()
-      );
-    }
-
-    if (!isOwner && !isAuthorizedAdmin) {
+    // Verify order belongs to logged-in user or user is an admin
+    if (order.user.toString() !== req.user._id.toString() && !req.user.isAdmin) {
       return res.status(401).json({ message: 'Not authorized to cancel this order' });
     }
 
@@ -459,13 +408,11 @@ const cancelOrder = async (req, res) => {
     order.cancelComments = cancelComments || '';
     order.cancelledAt = Date.now();
 
-    // Restore stock for items in the cancelled order
+    // Restore stock for each item in the cancelled order
     for (const item of order.orderItems) {
-      if (isOwner || (item.product && item.product.user && item.product.user.toString() === req.user._id.toString())) {
-        await Product.findByIdAndUpdate(item.product._id || item.product, {
-          $inc: { countInStock: item.quantity },
-        });
-      }
+      await Product.findByIdAndUpdate(item.product, {
+        $inc: { countInStock: item.quantity },
+      });
     }
 
     // Emit real-time stock updates for the restored products
