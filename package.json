@@ -1,7 +1,7 @@
 {
-  "name": "rakarituals-backend",
+  "name": "Raakarituals-backend",
   "version": "1.0.0",
-  "description": "Backend for RakaRituals meditation & spiritual products e-commerce platform",
+  "description": "Backend for Rakaarituals meditation & spiritual products e-commerce platform",
   "main": "server.js",
   "type": "module",
   "scripts": {
