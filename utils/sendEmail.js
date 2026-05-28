@@ -28,7 +28,7 @@ const sendEmail = async (options) => {
   });
 
   const mailOptions = {
-    from: process.env.SMTP_FROM || `"RakaRituals Admin" <${process.env.SMTP_USER}>`,
+    from: process.env.SMTP_FROM || `"Rakaarituals Admin" <${process.env.SMTP_USER}>`,
     to: options.to,
     subject: options.subject,
     text: options.text,

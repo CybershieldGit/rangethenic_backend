@@ -6,7 +6,7 @@ const router = express.Router();
 
 // Configure Multer to use memory storage (avoids writing files to the local disk)
 const storage = multer.memoryStorage();
-const upload = multer({ 
+const upload = multer({
   storage,
   limits: { fileSize: 5 * 1024 * 1024 }, // limit file size to 5MB
   fileFilter: (req, file, cb) => {
@@ -32,7 +32,7 @@ router.post('/', upload.single('image'), async (req, res) => {
       return new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
           {
-            folder: 'rakarituals',
+            folder: 'Raakarituals',
             resource_type: 'auto',
           },
           (error, result) => {
@@ -45,9 +45,9 @@ router.post('/', upload.single('image'), async (req, res) => {
     };
 
     const result = await uploadToCloudinary();
-    res.status(200).json({ 
+    res.status(200).json({
       message: 'Image uploaded successfully.',
-      url: result.secure_url 
+      url: result.secure_url
     });
   } catch (error) {
     console.error('Cloudinary Upload Error:', error);
