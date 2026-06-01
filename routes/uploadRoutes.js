@@ -47,7 +47,7 @@ router.post('/', imageUpload.single('image'), async (req, res) => {
       return new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
           {
-            folder: 'Raakarituals',
+            folder: 'Rakaarituals',
             resource_type: 'auto',
           },
           (error, result) => {
@@ -94,7 +94,7 @@ router.post('/video', (req, res, next) => {
       return new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
           {
-            folder: 'Raakarituals/videos',
+            folder: 'Rakaarituals/videos',
             resource_type: 'video',
           },
           (error, result) => {
