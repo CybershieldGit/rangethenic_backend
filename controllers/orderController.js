@@ -64,6 +64,10 @@ const createOrder = async (req, res) => {
     // 1. Fetch cart of user
     const cart = await Cart.findOne({ user: req.user._id }).populate('items.product');
 
+    if (cart) {
+      cart.items = cart.items.filter(item => item.product !== null);
+    }
+
     // 2. Ensure cart is not empty
     if (!cart || cart.items.length === 0) {
       return res.status(400).json({ message: "Cart is empty" });
