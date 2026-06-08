@@ -1,9 +1,78 @@
 import Order from '../models/Order.js';
 import Cart from '../models/Cart.js';
 import Product from '../models/Product.js';
+import User from '../models/User.js';
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import { getIO } from '../utils/socket.js';
+import {
+  isShiprocketConfigured,
+  getShippingRate,
+  getFreeShippingThreshold,
+  isFreeShippingEligible,
+  syncOrderToShiprocket,
+  cancelOrderOnShiprocket,
+} from '../utils/shiprocket.js';
+
+const getProductsMapFromOrder = (orderItems) =>
+  Object.fromEntries(
+    orderItems
+      .filter((item) => item.product)
+      .map((item) => {
+        const id = item.product._id?.toString() || item.product.toString();
+        return [id, item.product];
+      })
+  );
+
+const pushOrderToShiprocket = async (order) => {
+  if (!isShiprocketConfigured() || !order || order.shiprocketOrderId) return order;
+
+  try {
+    const user = await User.findById(order.user);
+    const productsById = getProductsMapFromOrder(order.orderItems);
+    const result = await syncOrderToShiprocket(order, user?.email, productsById);
+
+    if (result.synced && result.shiprocketOrderId) {
+      order.shiprocketOrderId = result.shiprocketOrderId;
+      if (result.shipmentId) order.shiprocketShipmentId = result.shipmentId;
+      if (result.channelOrderId) order.shiprocketChannelOrderId = result.channelOrderId;
+      order.shippingStatus = 'Created in Shiprocket';
+      order.shiprocketSyncedAt = new Date();
+      order.shipmentError = undefined;
+      await order.save();
+      await emitOrderUpdate(order._id, 'orderUpdated');
+    }
+  } catch (err) {
+    console.error('Shiprocket order sync failed:', err.message);
+    order.shipmentError = err.message;
+    if (err.shiprocketOrderId) order.shiprocketOrderId = String(err.shiprocketOrderId);
+    await order.save();
+  }
+
+  return order;
+};
+
+const pushOrderCancellationToShiprocket = async (order) => {
+  if (!isShiprocketConfigured() || !order?.shiprocketOrderId || order.shiprocketCancelledAt) {
+    return order;
+  }
+
+  try {
+    const result = await cancelOrderOnShiprocket(order);
+    if (result.cancelled) {
+      order.shippingStatus = 'Cancelled in Shiprocket';
+      order.shiprocketCancelledAt = new Date();
+      order.shipmentError = undefined;
+      await order.save();
+    }
+  } catch (err) {
+    console.error('Shiprocket order cancel failed:', err.message);
+    order.shipmentError = err.message;
+    await order.save();
+  }
+
+  return order;
+};
 
 // Initialize Razorpay
 const getRazorpayInstance = () => {
@@ -94,12 +163,12 @@ const createOrder = async (req, res) => {
       }
     }
 
-    // 5. Convert cart items -> orderItems & calculate totalPrice server-side
-    let totalPrice = 0;
+    // 5. Convert cart items -> orderItems & calculate itemsPrice server-side
+    let itemsPrice = 0;
     const orderItems = cart.items.map((item) => {
       const itemPrice = item.product.price;
       const itemTotal = itemPrice * item.quantity;
-      totalPrice += itemTotal;
+      itemsPrice += itemTotal;
 
       return {
         product: item.product._id,
@@ -109,11 +178,48 @@ const createOrder = async (req, res) => {
       };
     });
 
+    const productsById = Object.fromEntries(
+      cart.items.filter((i) => i.product).map((i) => [i.product._id.toString(), i.product])
+    );
+
+    // 5b. Calculate shipping via Shiprocket (free over threshold from env)
+    const freeShippingThreshold = getFreeShippingThreshold();
+    let shippingPrice = 0;
+    let isShippingFree = isFreeShippingEligible(itemsPrice, freeShippingThreshold);
+    let courierId = null;
+
+    if (!isShippingFree && isShiprocketConfigured()) {
+      try {
+        const rates = await getShippingRate({
+          deliveryPincode: shippingAddress.postalCode,
+          itemsPrice,
+          paymentMethod: paymentMethod || 'Online',
+          orderItems,
+          productsById,
+        });
+        shippingPrice = rates.shippingPrice;
+        isShippingFree = rates.isShippingFree;
+        courierId = rates.courier?.id || null;
+      } catch (shipErr) {
+        console.error('Shiprocket rate lookup failed, defaulting to free shipping:', shipErr.message);
+        shippingPrice = 0;
+        isShippingFree = true;
+      }
+    } else if (isShippingFree) {
+      shippingPrice = 0;
+    }
+
+    const totalPrice = itemsPrice + shippingPrice;
+
     // 6. Save order in MongoDB
     const order = await Order.create({
       user: req.user._id,
       orderItems,
+      itemsPrice,
+      shippingPrice,
+      isShippingFree,
       totalPrice,
+      courierId,
       shippingAddress,
       referralCode,
       referral,
@@ -135,13 +241,18 @@ const createOrder = async (req, res) => {
 
       cart.items = [];
       await cart.save();
- 
+
+      const populatedOrder = await Order.findById(order._id).populate('orderItems.product');
+      await pushOrderToShiprocket(populatedOrder);
+
+      const syncedOrder = await Order.findById(order._id).populate('orderItems.product');
+
       // Emit websocket event for new COD order
       await emitOrderUpdate(order._id, 'orderCreated');
 
       return res.status(201).json({
         message: 'Order created successfully via Cash on Delivery!',
-        order,
+        order: syncedOrder || order,
       });
     }
 
@@ -281,7 +392,10 @@ const verifyPayment = async (req, res) => {
       await cart.save();
     }
 
-    const updatedOrder = await order.save();
+    await order.save();
+    await pushOrderToShiprocket(order);
+
+    const updatedOrder = await Order.findById(order._id).populate('orderItems.product');
 
     // Emit websocket event for new online order (payment success means order is now confirmed)
     await emitOrderUpdate(updatedOrder._id, 'orderCreated');
@@ -360,6 +474,8 @@ const updateOrderDeliveryStatus = async (req, res) => {
 
         // Emit real-time stock updates for the restored products
         await emitProductStockUpdates(order.orderItems);
+
+        await pushOrderCancellationToShiprocket(order);
       }
     }
 
@@ -421,6 +537,8 @@ const cancelOrder = async (req, res) => {
 
     // Emit real-time stock updates for the restored products
     await emitProductStockUpdates(order.orderItems);
+
+    await pushOrderCancellationToShiprocket(order);
 
     const updatedOrder = await order.save();
 

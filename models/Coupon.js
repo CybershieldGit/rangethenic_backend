@@ -45,7 +45,7 @@ const couponSchema = new mongoose.Schema(
 
 // Index to quickly search active and unique coupon codes
 couponSchema.index({ isActive: 1, expiryDate: 1 });
-couponSchema.index({ code: 1 }, { unique: true });
+// couponSchema.index({ code: 1 }, { unique: true });
 
 const Coupon = mongoose.model('Coupon', couponSchema);
 
