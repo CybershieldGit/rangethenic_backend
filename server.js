@@ -1,5 +1,5 @@
+import './config/env.js';
 import express from 'express';
-import dotenv from 'dotenv';
 import cors from 'cors';
 import http from 'http';
 import connectDB from './config/db.js';
@@ -14,8 +14,7 @@ import userRoutes from './routes/userRoutes.js';
 import categoryRoutes from './routes/categoryRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
 import couponRoutes from './routes/couponRoutes.js';
-
-dotenv.config();
+import shippingRoutes from './routes/shippingRoutes.js';
 
 connectDB();
 
@@ -40,6 +39,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/coupons', couponRoutes);
+app.use('/api/shipping', shippingRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

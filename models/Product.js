@@ -60,6 +60,34 @@ const productSchema = new mongoose.Schema(
       required: true,
       default: true,
     },
+    weight: {
+      type: Number,
+      default: 0.5,
+      min: 0.1,
+    },
+    length: {
+      type: Number,
+      default: 10,
+      min: 1,
+    },
+    breadth: {
+      type: Number,
+      default: 10,
+      min: 1,
+    },
+    height: {
+      type: Number,
+      default: 10,
+      min: 1,
+    },
+    sku: {
+      type: String,
+      default: '',
+    },
+    hsnCode: {
+      type: Number,
+      default: 33049990,
+    },
     isFeatured: {
       type: Boolean,
       required: true,
