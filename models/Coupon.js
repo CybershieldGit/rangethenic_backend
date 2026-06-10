@@ -37,6 +37,20 @@ const couponSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    firstOrderOnly: {
+      type: Boolean,
+      default: false,
+    },
+    usageLimit: {
+      type: Number,
+      default: null,
+      min: 0,
+    },
+    usedCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
   },
   {
     timestamps: true,

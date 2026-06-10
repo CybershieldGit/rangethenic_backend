@@ -16,6 +16,16 @@ import {
 import { validateShippingAddress } from '../utils/address.js';
 import { buildCustomerTrackingUrl } from '../utils/tracking.js';
 import { refreshOrdersTrackingBatch, refreshOrderTrackingFromShiprocket } from '../utils/orderStatus.js';
+import {
+  validateCouponForUser,
+  incrementCouponUsage,
+  decrementCouponUsage,
+  assertCouponNotAlreadyUsed,
+  assertFirstOrderCouponEligible,
+  reserveCouponForUser,
+  releaseCouponReservation,
+  linkCouponUsageToOrder,
+} from '../utils/couponService.js';
 
 const getProductsMapFromOrder = (orderItems) =>
   Object.fromEntries(
@@ -147,7 +157,7 @@ const createOrder = async (req, res) => {
     }
 
     // 3. Ensure shipping address is provided and valid
-    const { referralCode, referral, paymentMethod } = req.body;
+    const { paymentMethod, couponCode } = req.body;
     const addressCheck = validateShippingAddress(req.body.shippingAddress);
     if (!req.body.shippingAddress) {
       return res.status(400).json({ message: 'Shipping address is required' });
@@ -220,23 +230,61 @@ const createOrder = async (req, res) => {
       shippingPrice = 0;
     }
 
-    const totalPrice = itemsPrice + shippingPrice;
+    let couponDiscount = 0;
+    let appliedCouponCode;
+    let appliedCoupon;
+    let couponUsageRecord;
+
+    if (couponCode?.trim()) {
+      try {
+        const couponResult = await validateCouponForUser({
+          code: couponCode,
+          userId: req.user._id,
+          itemsPrice,
+        });
+        couponDiscount = couponResult.discount;
+        appliedCouponCode = couponResult.coupon.code;
+        appliedCoupon = couponResult.coupon;
+
+        // Re-check immediately before reserving (closes checkout double-submit window)
+        await assertCouponNotAlreadyUsed(req.user._id, appliedCouponCode);
+        await assertFirstOrderCouponEligible(req.user._id, appliedCoupon);
+        couponUsageRecord = await reserveCouponForUser({
+          userId: req.user._id,
+          coupon: appliedCoupon,
+        });
+      } catch (couponErr) {
+        return res.status(400).json({ message: couponErr.message });
+      }
+    }
+
+    const totalPrice = Math.max(0, itemsPrice - couponDiscount + shippingPrice);
 
     // 6. Save order in MongoDB
-    const order = await Order.create({
-      user: req.user._id,
-      orderItems,
-      itemsPrice,
-      shippingPrice,
-      isShippingFree,
-      totalPrice,
-      courierId,
-      shippingAddress,
-      referralCode,
-      referral,
-      paymentMethod: paymentMethod || 'Online',
-      paymentStatus: paymentMethod === 'COD' ? 'COD' : 'Pending',
-    });
+    let order;
+    try {
+      order = await Order.create({
+        user: req.user._id,
+        orderItems,
+        itemsPrice,
+        shippingPrice,
+        isShippingFree,
+        totalPrice,
+        couponCode: appliedCouponCode,
+        couponDiscount,
+        courierId,
+        shippingAddress,
+        paymentMethod: paymentMethod || 'Online',
+        paymentStatus: paymentMethod === 'COD' ? 'COD' : 'Pending',
+      });
+
+      if (couponUsageRecord) {
+        await linkCouponUsageToOrder(couponUsageRecord, order._id);
+      }
+    } catch (orderErr) {
+      await releaseCouponReservation(couponUsageRecord);
+      throw orderErr;
+    }
 
     // 7. If Cash on Delivery, reduce stock immediately and complete
     if (paymentMethod === 'COD') {
@@ -257,6 +305,10 @@ const createOrder = async (req, res) => {
       await pushOrderToShiprocket(populatedOrder);
 
       const syncedOrder = await Order.findById(order._id).populate('orderItems.product');
+
+      if (appliedCouponCode) {
+        await incrementCouponUsage(appliedCouponCode);
+      }
 
       // Emit websocket event for new COD order
       await emitOrderUpdate(order._id, 'orderCreated');
@@ -407,6 +459,11 @@ const verifyPayment = async (req, res) => {
     }
 
     await order.save();
+
+    if (order.couponCode) {
+      await incrementCouponUsage(order.couponCode);
+    }
+
     await pushOrderToShiprocket(order);
 
     const updatedOrder = await Order.findById(order._id).populate('orderItems.product');
@@ -494,6 +551,10 @@ const updateOrderDeliveryStatus = async (req, res) => {
         // Emit real-time stock updates for the restored products
         await emitProductStockUpdates(order.orderItems);
 
+        if (order.couponCode && (order.paymentMethod === 'COD' || order.isPaid)) {
+          await decrementCouponUsage(order.couponCode);
+        }
+
         await pushOrderCancellationToShiprocket(order);
       }
     }
@@ -567,6 +628,10 @@ const cancelOrder = async (req, res) => {
 
     // Emit real-time stock updates for the restored products
     await emitProductStockUpdates(order.orderItems);
+
+    if (order.couponCode && (order.paymentMethod === 'COD' || order.isPaid)) {
+      await decrementCouponUsage(order.couponCode);
+    }
 
     await order.save();
     await pushOrderCancellationToShiprocket(order);

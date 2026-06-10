@@ -1,4 +1,5 @@
 import Coupon from '../models/Coupon.js';
+import { validateCouponForUser } from '../utils/couponService.js';
 
 // @desc    Get active, unexpired coupons
 // @route   GET /api/coupons
@@ -41,7 +42,7 @@ const getCouponsAdmin = async (req, res) => {
 // @access  Private/Admin
 const createCoupon = async (req, res) => {
   try {
-    const { code, discountType, discountValue, minPurchase, description, expiryDate, isActive } = req.body;
+    const { code, discountType, discountValue, minPurchase, description, expiryDate, isActive, firstOrderOnly, usageLimit } = req.body;
 
     if (!code || !code.trim()) {
       return res.status(400).json({ message: 'Coupon code is required' });
@@ -71,6 +72,9 @@ const createCoupon = async (req, res) => {
       description: description.trim(),
       expiryDate: expiryDate || null,
       isActive: isActive !== undefined ? isActive : true,
+      firstOrderOnly: Boolean(firstOrderOnly),
+      usageLimit: usageLimit > 0 ? usageLimit : null,
+      usedCount: 0,
     });
 
     res.status(201).json(coupon);
@@ -91,7 +95,7 @@ const updateCoupon = async (req, res) => {
       return res.status(404).json({ message: 'Coupon not found' });
     }
 
-    const { code, discountType, discountValue, minPurchase, description, expiryDate, isActive } = req.body;
+    const { code, discountType, discountValue, minPurchase, description, expiryDate, isActive, firstOrderOnly, usageLimit } = req.body;
 
     if (code) {
       const uppercaseCode = code.trim().toUpperCase();
@@ -121,6 +125,8 @@ const updateCoupon = async (req, res) => {
     if (description !== undefined) coupon.description = description.trim();
     if (expiryDate !== undefined) coupon.expiryDate = expiryDate || null;
     if (isActive !== undefined) coupon.isActive = isActive;
+    if (firstOrderOnly !== undefined) coupon.firstOrderOnly = Boolean(firstOrderOnly);
+    if (usageLimit !== undefined) coupon.usageLimit = usageLimit > 0 ? usageLimit : null;
 
     const updatedCoupon = await coupon.save();
     res.json(updatedCoupon);
@@ -149,10 +155,39 @@ const deleteCoupon = async (req, res) => {
   }
 };
 
+// @desc    Validate coupon for checkout
+// @route   POST /api/coupons/validate
+// @access  Private
+const validateCoupon = async (req, res) => {
+  try {
+    const { code, itemsPrice } = req.body;
+    const result = await validateCouponForUser({
+      code,
+      userId: req.user._id,
+      itemsPrice,
+    });
+
+    res.json({
+      valid: true,
+      code: result.coupon.code,
+      description: result.coupon.description,
+      discountType: result.coupon.discountType,
+      discountValue: result.coupon.discountValue,
+      firstOrderOnly: result.coupon.firstOrderOnly,
+      discount: result.discount,
+      itemsPrice: result.itemsPrice,
+      totalAfterDiscount: result.totalAfterDiscount,
+    });
+  } catch (error) {
+    res.status(400).json({ valid: false, message: error.message });
+  }
+};
+
 export {
   getCoupons,
   getCouponsAdmin,
   createCoupon,
   updateCoupon,
-  deleteCoupon
+  deleteCoupon,
+  validateCoupon,
 };
