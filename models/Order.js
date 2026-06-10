@@ -95,6 +95,14 @@ const orderSchema = new mongoose.Schema(
     referral: {
       type: String,
     },
+    couponCode: {
+      type: String,
+    },
+    couponDiscount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     deliveryStatus: {
       type: String,
       required: true,
