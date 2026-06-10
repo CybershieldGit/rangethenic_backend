@@ -92,6 +92,10 @@ export const getShiprocketConfig = () => {
     email,
     password,
     channelId: getEnv(['SHIP_ROCKET_CHANNEL_ID', 'ship_rocket_channel_id']),
+    trackingPageUrl: getEnv(
+      ['SHIPROCKET_TRACKING_PAGE_URL', 'SHIP_ROCKET_TRACKING_PAGE_URL'],
+      'https://rakaarituals.shiprocket.co/tracking'
+    ),
     ...pickup,
   };
 };
@@ -272,6 +276,48 @@ export const checkServiceability = async ({ deliveryPincode, weight, isCOD, decl
   return shiprocketFetch(`/courier/serviceability/?${params.toString()}`, { method: 'GET' });
 };
 
+/** Total charge aligned with Shiprocket panel (rate + whatsapp + surge + other fees). */
+export const getCourierDeliveredCharge = (courier = {}) => {
+  const baseRate = Number(courier.rate) || 0;
+  const surgeCharges = Array.isArray(courier.surge)
+    ? courier.surge.reduce((sum, item) => sum + (Number(item.charge) || 0), 0)
+    : 0;
+
+  const total =
+    baseRate +
+    (Number(courier.whatsapp_charges) || 0) +
+    surgeCharges +
+    (Number(courier.coverage_charges) || 0) +
+    (Number(courier.other_charges) || 0) +
+    (Number(courier.entry_tax) || 0);
+
+  return Number(total.toFixed(2));
+};
+
+const mapCourierQuote = (courier) => {
+  const baseRate = Number(courier.rate) || 0;
+  const totalCharge = getCourierDeliveredCharge(courier);
+  const surgeCharges = Array.isArray(courier.surge)
+    ? courier.surge.reduce((sum, item) => sum + (Number(item.charge) || 0), 0)
+    : 0;
+
+  return {
+    id: courier.courier_company_id,
+    name: courier.courier_name,
+    etd: courier.etd,
+    baseRate,
+    whatsappCharges: Number(courier.whatsapp_charges) || 0,
+    surgeCharges,
+    freightCharge: Number(courier.freight_charge) || 0,
+    codCharges: Number(courier.cod_charges) || 0,
+    totalCharge,
+    rate: totalCharge,
+  };
+};
+
+const pickCheapestCourier = (couriers = []) =>
+  [...couriers].sort((a, b) => getCourierDeliveredCharge(a) - getCourierDeliveredCharge(b))[0];
+
 export const getShippingRate = async ({ deliveryPincode, itemsPrice, paymentMethod, orderItems, productsById }) => {
   const freeShippingThreshold = getFreeShippingThreshold();
   const isFreeShipping = isFreeShippingEligible(itemsPrice, freeShippingThreshold);
@@ -299,20 +345,16 @@ export const getShippingRate = async ({ deliveryPincode, itemsPrice, paymentMeth
     throw new Error('No courier service available for this pincode');
   }
 
-  const cheapest = [...couriers].sort((a, b) => Number(a.rate) - Number(b.rate))[0];
+  const cheapest = pickCheapestCourier(couriers);
+  const quote = mapCourierQuote(cheapest);
 
   return {
     itemsPrice,
-    shippingPrice: Number(cheapest.rate) || 0,
+    shippingPrice: quote.totalCharge,
     isShippingFree: false,
     freeShippingThreshold,
-    courier: {
-      id: cheapest.courier_company_id,
-      name: cheapest.courier_name,
-      etd: cheapest.etd,
-      rate: cheapest.rate,
-    },
-    couriers,
+    courier: quote,
+    couriers: couriers.map(mapCourierQuote),
   };
 };
 
@@ -538,8 +580,10 @@ export const buildAdhocOrderPayload = (order, userEmail, productsById = {}, pick
     comment: `Rakaarituals order ${order._id.toString().slice(-8)}`,
     billing_customer_name: firstName,
     billing_last_name: lastName,
-    billing_address: order.shippingAddress.addressLine,
-    billing_address_2: '',
+    billing_address: [order.shippingAddress.houseFlatNo, order.shippingAddress.streetArea]
+      .filter(Boolean)
+      .join(', ') || order.shippingAddress.addressLine,
+    billing_address_2: order.shippingAddress.landmark || '',
     billing_city: order.shippingAddress.city,
     billing_pincode: billingPincode,
     billing_state: order.shippingAddress.state,
@@ -812,6 +856,16 @@ export const trackByAWB = async (awbCode) => {
   return shiprocketFetch(`/courier/track/awb/${awbCode}`, { method: 'GET' });
 };
 
+/** @see https://apidocs.shiprocket.in/ — POST /courier/track/awbs */
+export const trackByAWBs = async (awbCodes) => {
+  const awbs = (Array.isArray(awbCodes) ? awbCodes : [awbCodes]).filter(Boolean);
+  if (!awbs.length) throw new Error('At least one AWB code is required.');
+  return shiprocketFetch('/courier/track/awbs', {
+    method: 'POST',
+    body: JSON.stringify({ awbs }),
+  });
+};
+
 /** @see https://apidocs.shiprocket.in/ — GET /courier/track?order_id=&channel_id= */
 export const trackByOrderAndChannel = async ({ orderId, channelId }) => {
   const params = new URLSearchParams();
@@ -833,7 +887,7 @@ export const generateAWBForShipment = async ({ shipmentId, courierId }) => {
     awbCode: data?.awb_code || response?.awb_code || null,
     courierName: data?.courier_name || response?.courier_name || null,
     courierId: data?.courier_company_id || courierId || null,
-    trackingUrl: data?.awb_code ? `https://shiprocket.co/tracking/${data.awb_code}` : null,
+    trackingUrl: null,
     raw: response,
   };
 };
@@ -854,6 +908,15 @@ export const generateAWBForOrder = async (order, productsById = {}) => {
   return { shipmentId: String(shipmentId), courierId, ...awb };
 };
 
+/** Track by RAKA channel order id — matches branded page search (order_id=RAKA-xxx) */
+export const trackByChannelOrderId = async (channelOrderId) => {
+  const { channelId } = getShiprocketConfig();
+  return trackByOrderAndChannel({
+    orderId: channelOrderId,
+    channelId: channelId || undefined,
+  });
+};
+
 export const fetchLiveTracking = async (order) => {
   if (order.awbCode) {
     return { source: 'awb', data: await trackByAWB(order.awbCode) };
@@ -862,6 +925,14 @@ export const fetchLiveTracking = async (order) => {
   const shipmentId = order.shiprocketShipmentId;
   if (shipmentId) {
     return { source: 'shipment', data: await trackByShipmentId(shipmentId) };
+  }
+
+  const channelOrderId = order.shiprocketChannelOrderId || getChannelOrderId(order);
+  if (channelOrderId) {
+    return {
+      source: 'channel_order',
+      data: await trackByChannelOrderId(channelOrderId),
+    };
   }
 
   const shiprocketOrderId = order.shiprocketOrderId;
@@ -893,7 +964,7 @@ export const pickCourierId = async (order, productsById) => {
     throw new Error('No courier available for this shipment');
   }
 
-  const cheapest = [...couriers].sort((a, b) => Number(a.rate) - Number(b.rate))[0];
+  const cheapest = pickCheapestCourier(couriers);
   return cheapest.courier_company_id;
 };
 
@@ -973,9 +1044,7 @@ export const createFullShipment = async (order, userEmail, productsById = {}) =>
     labelUrl,
     manifestUrl,
     invoiceUrl,
-    trackingUrl: awbResponse?.response?.data?.awb_code
-      ? `https://shiprocket.co/tracking/${awbResponse.response.data.awb_code}`
-      : null,
+    trackingUrl: null,
   };
 };
 

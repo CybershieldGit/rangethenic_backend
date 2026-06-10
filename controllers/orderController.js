@@ -13,6 +13,8 @@ import {
   syncOrderToShiprocket,
   cancelOrderOnShiprocket,
 } from '../utils/shiprocket.js';
+import { validateShippingAddress } from '../utils/address.js';
+import { buildCustomerTrackingUrl } from '../utils/tracking.js';
 
 const getProductsMapFromOrder = (orderItems) =>
   Object.fromEntries(
@@ -39,6 +41,7 @@ const pushOrderToShiprocket = async (order) => {
       order.shippingStatus = 'Created in Shiprocket';
       order.shiprocketSyncedAt = new Date();
       order.shipmentError = undefined;
+      order.trackingUrl = buildCustomerTrackingUrl(order);
       await order.save();
       await emitOrderUpdate(order._id, 'orderUpdated');
     }
@@ -142,11 +145,18 @@ const createOrder = async (req, res) => {
       return res.status(400).json({ message: "Cart is empty" });
     }
 
-    // 3. Ensure shipping address is provided
-    const { shippingAddress, referralCode, referral, paymentMethod } = req.body;
-    if (!shippingAddress) {
-      return res.status(400).json({ message: "Shipping address is required" });
+    // 3. Ensure shipping address is provided and valid
+    const { referralCode, referral, paymentMethod } = req.body;
+    const addressCheck = validateShippingAddress(req.body.shippingAddress);
+    if (!req.body.shippingAddress) {
+      return res.status(400).json({ message: 'Shipping address is required' });
     }
+    if (!addressCheck.valid) {
+      return res.status(400).json({
+        message: `Please complete: ${addressCheck.missing.join(', ')}`,
+      });
+    }
+    const shippingAddress = addressCheck.normalized;
 
     // 4. Validate stock and COD eligibility for all items BEFORE creating order
     for (const item of cart.items) {
@@ -481,6 +491,9 @@ const updateOrderDeliveryStatus = async (req, res) => {
 
     // Explicitly toggle isPaid (useful for manually marking COD as paid/unpaid)
     if (isPaid !== undefined) {
+      if (order.deliveryStatus === 'Cancelled') {
+        return res.status(400).json({ message: 'Cannot change payment status for a cancelled order' });
+      }
       order.isPaid = isPaid;
       if (isPaid) {
         order.paidAt = Date.now();
