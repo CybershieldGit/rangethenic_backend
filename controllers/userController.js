@@ -1,4 +1,5 @@
 import User from '../models/User.js';
+import { normalizeAddress } from '../utils/address.js';
 
 // @desc    Get user profile
 // @route   GET /api/users/profile
@@ -42,13 +43,11 @@ const updateUserProfile = async (req, res, next) => {
       
       // Update address object
       if (req.body.address) {
-        user.address.fullName = req.body.address.fullName || user.address.fullName;
-        user.address.phone = req.body.address.phone || user.address.phone;
-        user.address.addressLine = req.body.address.addressLine || user.address.addressLine;
-        user.address.city = req.body.address.city || user.address.city;
-        user.address.state = req.body.address.state || user.address.state;
-        user.address.postalCode = req.body.address.postalCode || user.address.postalCode;
-        user.address.country = req.body.address.country || user.address.country;
+        const normalized = normalizeAddress({
+          ...user.address.toObject?.() || user.address,
+          ...req.body.address,
+        });
+        Object.assign(user.address, normalized);
       }
 
       const updatedUser = await user.save();

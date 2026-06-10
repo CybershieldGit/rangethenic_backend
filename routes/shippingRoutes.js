@@ -11,11 +11,13 @@ import {
   getOrderManifestHandler,
   syncOrderToShiprocketHandler,
   cancelShiprocketOrderHandler,
+  publicTrackHandler,
 } from '../controllers/shippingController.js';
 
 const router = express.Router();
 
 router.get('/config', getShippingConfig);
+router.get('/track-public', publicTrackHandler);
 router.post('/rates', protect, getShippingRates);
 router.post('/orders/:id/sync', protect, admin, syncOrderToShiprocketHandler);
 router.post('/orders/:id/cancel', protect, admin, cancelShiprocketOrderHandler);

@@ -13,6 +13,9 @@ import {
   syncOrderToShiprocket,
   cancelOrderOnShiprocket,
 } from '../utils/shiprocket.js';
+import { validateShippingAddress } from '../utils/address.js';
+import { buildCustomerTrackingUrl } from '../utils/tracking.js';
+import { refreshOrdersTrackingBatch, refreshOrderTrackingFromShiprocket } from '../utils/orderStatus.js';
 
 const getProductsMapFromOrder = (orderItems) =>
   Object.fromEntries(
@@ -39,6 +42,7 @@ const pushOrderToShiprocket = async (order) => {
       order.shippingStatus = 'Created in Shiprocket';
       order.shiprocketSyncedAt = new Date();
       order.shipmentError = undefined;
+      order.trackingUrl = buildCustomerTrackingUrl(order);
       await order.save();
       await emitOrderUpdate(order._id, 'orderUpdated');
     }
@@ -142,11 +146,18 @@ const createOrder = async (req, res) => {
       return res.status(400).json({ message: "Cart is empty" });
     }
 
-    // 3. Ensure shipping address is provided
-    const { shippingAddress, referralCode, referral, paymentMethod } = req.body;
-    if (!shippingAddress) {
-      return res.status(400).json({ message: "Shipping address is required" });
+    // 3. Ensure shipping address is provided and valid
+    const { referralCode, referral, paymentMethod } = req.body;
+    const addressCheck = validateShippingAddress(req.body.shippingAddress);
+    if (!req.body.shippingAddress) {
+      return res.status(400).json({ message: 'Shipping address is required' });
     }
+    if (!addressCheck.valid) {
+      return res.status(400).json({
+        message: `Please complete: ${addressCheck.missing.join(', ')}`,
+      });
+    }
+    const shippingAddress = addressCheck.normalized;
 
     // 4. Validate stock and COD eligibility for all items BEFORE creating order
     for (const item of cart.items) {
@@ -306,6 +317,8 @@ const getUserOrders = async (req, res) => {
     })
       .populate('orderItems.product')
       .sort({ createdAt: -1 });
+
+    await refreshOrdersTrackingBatch(orders, { emit: false });
     res.json(orders);
   } catch (error) {
     console.error('Error in getUserOrders:', error);
@@ -331,6 +344,7 @@ const getOrderById = async (req, res) => {
       return res.status(401).json({ message: 'Not authorized' });
     }
 
+    await refreshOrderTrackingFromShiprocket(order, { emit: false });
     res.json(order);
   } catch (error) {
     console.error('Error in getOrderById:', error);
@@ -421,7 +435,12 @@ const getAllOrders = async (req, res) => {
         { paymentMethod: 'COD' },
         { paymentMethod: 'Online', isPaid: true },
       ]
-    }).populate('user', 'id name email').sort({ createdAt: -1 });
+    })
+      .populate('user', 'id name email')
+      .populate('orderItems.product')
+      .sort({ createdAt: -1 });
+
+    await refreshOrdersTrackingBatch(orders, { emit: false });
     res.json(orders);
   } catch (error) {
     console.error('Error in getAllOrders:', error);
@@ -481,6 +500,9 @@ const updateOrderDeliveryStatus = async (req, res) => {
 
     // Explicitly toggle isPaid (useful for manually marking COD as paid/unpaid)
     if (isPaid !== undefined) {
+      if (order.deliveryStatus === 'Cancelled') {
+        return res.status(400).json({ message: 'Cannot change payment status for a cancelled order' });
+      }
       order.isPaid = isPaid;
       if (isPaid) {
         order.paidAt = Date.now();
@@ -518,13 +540,21 @@ const cancelOrder = async (req, res) => {
       return res.status(401).json({ message: 'Not authorized to cancel this order' });
     }
 
-    // Can only cancel if order status is 'Placed'
-    if (order.deliveryStatus !== 'Placed') {
+    if (order.deliveryStatus === 'Cancelled') {
+      return res.status(400).json({ message: 'Order is already cancelled' });
+    }
+
+    if (order.deliveryStatus === 'Delivered') {
+      return res.status(400).json({ message: 'Cannot cancel a delivered order' });
+    }
+
+    // Customers can only cancel while the order is still Placed
+    if (!req.user.isAdmin && order.deliveryStatus !== 'Placed') {
       return res.status(400).json({ message: `Cannot cancel order in '${order.deliveryStatus}' status` });
     }
 
     order.deliveryStatus = 'Cancelled';
-    order.cancelReason = cancelReason || 'Not Specified';
+    order.cancelReason = cancelReason || (req.user.isAdmin ? 'Cancelled by admin' : 'Not Specified');
     order.cancelComments = cancelComments || '';
     order.cancelledAt = Date.now();
 
@@ -538,9 +568,12 @@ const cancelOrder = async (req, res) => {
     // Emit real-time stock updates for the restored products
     await emitProductStockUpdates(order.orderItems);
 
+    await order.save();
     await pushOrderCancellationToShiprocket(order);
 
-    const updatedOrder = await order.save();
+    const updatedOrder = await Order.findById(order._id)
+      .populate('user', 'id name email')
+      .populate('orderItems.product');
 
     // Emit websocket event for order cancellation
     await emitOrderUpdate(updatedOrder._id, 'orderUpdated');

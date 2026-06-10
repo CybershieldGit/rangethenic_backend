@@ -1,16 +1,15 @@
 import Order from '../models/Order.js';
 import Product from '../models/Product.js';
 import User from '../models/User.js';
-import { getIO } from '../utils/socket.js';
 import {
   isShiprocketConfigured,
   getShippingRate,
   createFullShipment,
   trackByAWB,
   trackByShipmentId,
+  trackByChannelOrderId,
   fetchLiveTracking,
   generateAWBForOrder,
-  parseTrackingResponse,
   getFreeShippingThreshold,
   getShiprocketConfig,
   getShiprocketConfigStatus,
@@ -20,69 +19,23 @@ import {
   fetchOrderInvoice,
   fetchOrderManifest,
 } from '../utils/shiprocket.js';
-
-const emitOrderUpdate = async (orderId) => {
-  try {
-    const io = getIO();
-    if (!io) return;
-
-    const populatedOrder = await Order.findById(orderId)
-      .populate('user', 'id name email')
-      .populate('orderItems.product');
-
-    if (populatedOrder) {
-      io.emit('orderUpdated', populatedOrder);
-    }
-  } catch (error) {
-    console.error('Error emitting order update:', error);
-  }
-};
+import {
+  buildCustomerTrackingUrl,
+  getTrackingPageUrl,
+  normalizeChannelOrderId,
+  resolveOrderFromChannelId,
+  getChannelOrderId,
+  buildBrandedTrackingUrl,
+} from '../utils/tracking.js';
+import {
+  applyShiprocketTrackingToOrder,
+  emitOrderUpdated,
+} from '../utils/orderStatus.js';
 
 const getProductsMap = async (orderItems) => {
   const productIds = orderItems.map((item) => item.product);
   const products = await Product.find({ _id: { $in: productIds } });
   return Object.fromEntries(products.map((p) => [p._id.toString(), p]));
-};
-
-const applyTrackingToOrder = async (order, trackingData) => {
-  const { currentStatus, history, trackingUrl } = parseTrackingResponse(trackingData);
-
-  order.shippingStatus = currentStatus || order.shippingStatus;
-  order.trackingHistory = history.length ? history : order.trackingHistory;
-  if (trackingUrl && !order.trackingUrl) order.trackingUrl = trackingUrl;
-
-  const mappedStatus = mapShiprocketStatusToDelivery(currentStatus);
-  if (mappedStatus === 'Delivered' && order.deliveryStatus !== 'Delivered') {
-    order.deliveryStatus = 'Delivered';
-    order.deliveredAt = new Date();
-    if (order.paymentMethod === 'COD') {
-      order.isPaid = true;
-      order.paidAt = new Date();
-      order.paymentStatus = 'Success';
-    }
-  } else if (mappedStatus === 'Dispatched' && order.deliveryStatus === 'Placed') {
-    order.deliveryStatus = 'Dispatched';
-    order.dispatchedAt = new Date();
-  }
-
-  await order.save();
-  await emitOrderUpdate(order._id);
-  return { currentStatus, history, trackingUrl };
-};
-
-const mapShiprocketStatusToDelivery = (status = '') => {
-  const normalized = String(status).toLowerCase();
-  if (normalized.includes('deliver')) return 'Delivered';
-  if (
-    normalized.includes('dispatch') ||
-    normalized.includes('transit') ||
-    normalized.includes('pickup') ||
-    normalized.includes('shipped') ||
-    normalized.includes('out for')
-  ) {
-    return 'Dispatched';
-  }
-  return null;
 };
 
 // @desc    Get public shipping config from env
@@ -99,6 +52,7 @@ export const getShippingConfig = async (req, res) => {
     apiEmail: config.email ? `${config.email.slice(0, 3)}***` : null,
     pickupLocation: config.pickupLocation,
     pickupPincode: config.pickupPincode,
+    trackingPageUrl: config.trackingPageUrl || getTrackingPageUrl(),
   });
 };
 
@@ -125,8 +79,9 @@ export const syncOrderToShiprocketHandler = async (req, res) => {
       order.shippingStatus = 'Created in Shiprocket';
       order.shiprocketSyncedAt = new Date();
       order.shipmentError = undefined;
+      order.trackingUrl = buildCustomerTrackingUrl(order);
       await order.save();
-      await emitOrderUpdate(order._id);
+      await emitOrderUpdated(order._id);
     }
 
     const populated = await Order.findById(order._id).populate('user', 'id name email').populate('orderItems.product');
@@ -172,7 +127,7 @@ export const cancelShiprocketOrderHandler = async (req, res) => {
       order.shiprocketCancelledAt = new Date();
       order.shipmentError = undefined;
       await order.save();
-      await emitOrderUpdate(order._id);
+      await emitOrderUpdated(order._id);
     }
 
     const populated = await Order.findById(order._id).populate('user', 'id name email').populate('orderItems.product');
@@ -296,7 +251,12 @@ export const createShipment = async (req, res) => {
     order.awbCode = shipment.awbCode;
     order.courierName = shipment.courierName;
     order.courierId = shipment.courierId;
-    order.trackingUrl = shipment.trackingUrl;
+    order.trackingUrl = buildCustomerTrackingUrl({
+      ...order.toObject(),
+      awbCode: shipment.awbCode,
+      shiprocketShipmentId: shipment.shipmentId,
+      shiprocketOrderId: shipment.shiprocketOrderId,
+    });
     order.labelUrl = shipment.labelUrl;
     order.manifestUrl = shipment.manifestUrl;
     order.invoiceUrl = shipment.invoiceUrl;
@@ -308,7 +268,7 @@ export const createShipment = async (req, res) => {
     order.dispatchedAt = order.dispatchedAt || new Date();
 
     await order.save();
-    await emitOrderUpdate(order._id);
+    await emitOrderUpdated(order._id);
 
     const populatedOrder = await Order.findById(order._id)
       .populate('user', 'id name email')
@@ -367,13 +327,13 @@ export const generateAWBHandler = async (req, res) => {
     order.awbCode = awb.awbCode;
     order.courierName = awb.courierName;
     order.courierId = awb.courierId;
-    order.trackingUrl = awb.trackingUrl;
+    order.trackingUrl = buildCustomerTrackingUrl(order);
     order.shiprocketShipmentId = awb.shipmentId;
     order.shipmentError = undefined;
     order.shippingStatus = order.shippingStatus || 'AWB Assigned';
 
     await order.save();
-    await emitOrderUpdate(order._id);
+    await emitOrderUpdated(order._id);
 
     const populated = await Order.findById(order._id).populate('user', 'id name email').populate('orderItems.product');
     res.json({
@@ -419,6 +379,104 @@ export const trackShipmentHandler = async (req, res) => {
   }
 };
 
+const buildPublicTrackingPayload = (parsed, extras = {}) => ({
+  currentStatus: parsed.currentStatus || null,
+  awbCode: extras.awbCode || null,
+  courierName: extras.courierName || null,
+  channelOrderId: extras.channelOrderId || null,
+  deliveryStatus: extras.deliveryStatus || null,
+  trackedVia: extras.trackedVia || null,
+  brandedTrackingUrl: extras.brandedTrackingUrl || null,
+  history: parsed.history || [],
+});
+
+// @desc    Public tracking lookup by RAKA order ID or AWB (no login required)
+// @route   GET /api/shipping/track-public?order_id=RAKA-xxx&awb=xxx
+// @access  Public
+export const publicTrackHandler = async (req, res) => {
+  try {
+    const orderIdInput = req.query.order_id || req.query.orderId;
+    const awbInput = req.query.awb;
+
+    if (!orderIdInput && !awbInput) {
+      return res.status(400).json({ message: 'Provide order_id or awb to track your shipment.' });
+    }
+
+    if (!isShiprocketConfigured()) {
+      return res.status(503).json({ message: 'Tracking is temporarily unavailable. Please try again later.' });
+    }
+
+    if (awbInput?.trim()) {
+      const awb = awbInput.trim();
+      const data = await trackByAWB(awb);
+      const parsed = parseTrackingResponse(data);
+      return res.json({
+        searchBy: 'awb',
+        ...buildPublicTrackingPayload(parsed, {
+          awbCode: awb,
+          trackedVia: 'courier/track/awb',
+          brandedTrackingUrl: buildBrandedTrackingUrl({ awb }),
+        }),
+      });
+    }
+
+    const channelId = normalizeChannelOrderId(orderIdInput);
+    if (!channelId) {
+      return res.status(400).json({ message: 'Invalid order ID format.' });
+    }
+
+    const brandedTrackingUrl = buildBrandedTrackingUrl({ orderId: channelId });
+    const order = await resolveOrderFromChannelId(channelId);
+
+    if (order?.deliveryStatus === 'Cancelled') {
+      return res.status(400).json({ message: 'This order has been cancelled.' });
+    }
+
+    let live = null;
+
+    if (order) {
+      if (!order.awbCode && !order.shiprocketShipmentId && !order.shiprocketOrderId) {
+        return res.status(404).json({
+          message: 'Your order is confirmed but not shipped yet. Tracking will be available once dispatched.',
+          brandedTrackingUrl,
+        });
+      }
+      live = await fetchLiveTracking(order);
+    }
+
+    if (!live) {
+      try {
+        const data = await trackByChannelOrderId(channelId);
+        live = { source: 'channel_order', data };
+      } catch (apiErr) {
+        if (!order) {
+          return res.status(404).json({
+            message: 'Order not found. Please check your order ID.',
+            brandedTrackingUrl,
+          });
+        }
+        throw apiErr;
+      }
+    }
+
+    const parsed = parseTrackingResponse(live.data);
+    return res.json({
+      searchBy: 'order_id',
+      ...buildPublicTrackingPayload(parsed, {
+        awbCode: order?.awbCode || null,
+        courierName: order?.courierName || null,
+        channelOrderId: channelId,
+        deliveryStatus: order?.deliveryStatus || null,
+        trackedVia: live.source,
+        brandedTrackingUrl,
+      }),
+    });
+  } catch (error) {
+    console.error('Error in publicTrackHandler:', error);
+    res.status(500).json({ message: error.message || 'Failed to fetch tracking' });
+  }
+};
+
 // @desc    Get live tracking for a Raka order (uses AWB, or shipment ID as fallback)
 // @route   GET /api/shipping/orders/:id/track
 // @access  Private
@@ -436,11 +494,12 @@ export const getOrderTracking = async (req, res) => {
       return res.status(401).json({ message: 'Not authorized' });
     }
 
-    if (!order.awbCode && !order.shiprocketShipmentId) {
+    if (!order.awbCode && !order.shiprocketShipmentId && !order.shiprocketOrderId) {
       return res.json({
         order,
         tracking: null,
-        message: 'Order not synced to Shiprocket yet. Admin must sync and ship the order first.',
+        trackingPageUrl: getTrackingPageUrl(),
+        message: 'Order not synced to Shiprocket yet. Admin must sync the order first.',
       });
     }
 
@@ -451,14 +510,23 @@ export const getOrderTracking = async (req, res) => {
           awbCode: order.awbCode,
           shipmentId: order.shiprocketShipmentId,
           courierName: order.courierName,
-          trackingUrl: order.trackingUrl,
+          trackingUrl: order.trackingUrl || buildCustomerTrackingUrl(order),
           history: order.trackingHistory || [],
         },
+        trackingPageUrl: getTrackingPageUrl(),
       });
     }
 
     const live = await fetchLiveTracking(order);
-    const { currentStatus, history, trackingUrl } = await applyTrackingToOrder(order, live.data);
+    if (!live) {
+      return res.json({
+        order,
+        tracking: null,
+        message: 'No tracking reference found on this order.',
+      });
+    }
+
+    const { currentStatus, history, trackingUrl } = await applyShiprocketTrackingToOrder(order, live.data);
 
     res.json({
       order,
@@ -466,12 +534,13 @@ export const getOrderTracking = async (req, res) => {
         awbCode: order.awbCode,
         shipmentId: order.shiprocketShipmentId,
         courierName: order.courierName,
-        trackingUrl: order.trackingUrl || trackingUrl,
+        trackingUrl: order.trackingUrl || buildCustomerTrackingUrl(order) || trackingUrl,
         currentStatus: order.shippingStatus || currentStatus,
         trackedVia: live.source,
         history: order.trackingHistory || history,
         raw: live.data,
       },
+      trackingPageUrl: getTrackingPageUrl(),
     });
   } catch (error) {
     console.error('Error in getOrderTracking:', error);
@@ -514,7 +583,7 @@ export const getOrderInvoiceHandler = async (req, res) => {
       invoiceUrl = result.invoiceUrl;
       order.invoiceUrl = invoiceUrl;
       await order.save();
-      await emitOrderUpdate(order._id);
+      await emitOrderUpdated(order._id);
     }
 
     const populated = await Order.findById(order._id)
@@ -554,7 +623,7 @@ export const getOrderManifestHandler = async (req, res) => {
       manifestUrl = result.manifestUrl;
       order.manifestUrl = manifestUrl;
       await order.save();
-      await emitOrderUpdate(order._id);
+      await emitOrderUpdated(order._id);
     }
 
     res.json({ message: 'Manifest ready', manifestUrl, order });
