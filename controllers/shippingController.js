@@ -1,7 +1,6 @@
 import Order from '../models/Order.js';
 import Product from '../models/Product.js';
 import User from '../models/User.js';
-import { getIO } from '../utils/socket.js';
 import {
   isShiprocketConfigured,
   getShippingRate,
@@ -11,7 +10,6 @@ import {
   trackByChannelOrderId,
   fetchLiveTracking,
   generateAWBForOrder,
-  parseTrackingResponse,
   getFreeShippingThreshold,
   getShiprocketConfig,
   getShiprocketConfigStatus,
@@ -29,70 +27,15 @@ import {
   getChannelOrderId,
   buildBrandedTrackingUrl,
 } from '../utils/tracking.js';
-
-const emitOrderUpdate = async (orderId) => {
-  try {
-    const io = getIO();
-    if (!io) return;
-
-    const populatedOrder = await Order.findById(orderId)
-      .populate('user', 'id name email')
-      .populate('orderItems.product');
-
-    if (populatedOrder) {
-      io.emit('orderUpdated', populatedOrder);
-    }
-  } catch (error) {
-    console.error('Error emitting order update:', error);
-  }
-};
+import {
+  applyShiprocketTrackingToOrder,
+  emitOrderUpdated,
+} from '../utils/orderStatus.js';
 
 const getProductsMap = async (orderItems) => {
   const productIds = orderItems.map((item) => item.product);
   const products = await Product.find({ _id: { $in: productIds } });
   return Object.fromEntries(products.map((p) => [p._id.toString(), p]));
-};
-
-const applyTrackingToOrder = async (order, trackingData) => {
-  const { currentStatus, history, trackingUrl } = parseTrackingResponse(trackingData);
-
-  order.shippingStatus = currentStatus || order.shippingStatus;
-  order.trackingHistory = history.length ? history : order.trackingHistory;
-  const brandedUrl = buildCustomerTrackingUrl(order);
-  order.trackingUrl = brandedUrl || trackingUrl || order.trackingUrl;
-
-  const mappedStatus = mapShiprocketStatusToDelivery(currentStatus);
-  if (mappedStatus === 'Delivered' && order.deliveryStatus !== 'Delivered') {
-    order.deliveryStatus = 'Delivered';
-    order.deliveredAt = new Date();
-    if (order.paymentMethod === 'COD') {
-      order.isPaid = true;
-      order.paidAt = new Date();
-      order.paymentStatus = 'Success';
-    }
-  } else if (mappedStatus === 'Dispatched' && order.deliveryStatus === 'Placed') {
-    order.deliveryStatus = 'Dispatched';
-    order.dispatchedAt = new Date();
-  }
-
-  await order.save();
-  await emitOrderUpdate(order._id);
-  return { currentStatus, history, trackingUrl };
-};
-
-const mapShiprocketStatusToDelivery = (status = '') => {
-  const normalized = String(status).toLowerCase();
-  if (normalized.includes('deliver')) return 'Delivered';
-  if (
-    normalized.includes('dispatch') ||
-    normalized.includes('transit') ||
-    normalized.includes('pickup') ||
-    normalized.includes('shipped') ||
-    normalized.includes('out for')
-  ) {
-    return 'Dispatched';
-  }
-  return null;
 };
 
 // @desc    Get public shipping config from env
@@ -138,7 +81,7 @@ export const syncOrderToShiprocketHandler = async (req, res) => {
       order.shipmentError = undefined;
       order.trackingUrl = buildCustomerTrackingUrl(order);
       await order.save();
-      await emitOrderUpdate(order._id);
+      await emitOrderUpdated(order._id);
     }
 
     const populated = await Order.findById(order._id).populate('user', 'id name email').populate('orderItems.product');
@@ -184,7 +127,7 @@ export const cancelShiprocketOrderHandler = async (req, res) => {
       order.shiprocketCancelledAt = new Date();
       order.shipmentError = undefined;
       await order.save();
-      await emitOrderUpdate(order._id);
+      await emitOrderUpdated(order._id);
     }
 
     const populated = await Order.findById(order._id).populate('user', 'id name email').populate('orderItems.product');
@@ -325,7 +268,7 @@ export const createShipment = async (req, res) => {
     order.dispatchedAt = order.dispatchedAt || new Date();
 
     await order.save();
-    await emitOrderUpdate(order._id);
+    await emitOrderUpdated(order._id);
 
     const populatedOrder = await Order.findById(order._id)
       .populate('user', 'id name email')
@@ -390,7 +333,7 @@ export const generateAWBHandler = async (req, res) => {
     order.shippingStatus = order.shippingStatus || 'AWB Assigned';
 
     await order.save();
-    await emitOrderUpdate(order._id);
+    await emitOrderUpdated(order._id);
 
     const populated = await Order.findById(order._id).populate('user', 'id name email').populate('orderItems.product');
     res.json({
@@ -583,7 +526,7 @@ export const getOrderTracking = async (req, res) => {
       });
     }
 
-    const { currentStatus, history, trackingUrl } = await applyTrackingToOrder(order, live.data);
+    const { currentStatus, history, trackingUrl } = await applyShiprocketTrackingToOrder(order, live.data);
 
     res.json({
       order,
@@ -640,7 +583,7 @@ export const getOrderInvoiceHandler = async (req, res) => {
       invoiceUrl = result.invoiceUrl;
       order.invoiceUrl = invoiceUrl;
       await order.save();
-      await emitOrderUpdate(order._id);
+      await emitOrderUpdated(order._id);
     }
 
     const populated = await Order.findById(order._id)
@@ -680,7 +623,7 @@ export const getOrderManifestHandler = async (req, res) => {
       manifestUrl = result.manifestUrl;
       order.manifestUrl = manifestUrl;
       await order.save();
-      await emitOrderUpdate(order._id);
+      await emitOrderUpdated(order._id);
     }
 
     res.json({ message: 'Manifest ready', manifestUrl, order });
