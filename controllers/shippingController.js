@@ -150,32 +150,57 @@ export const cancelShiprocketOrderHandler = async (req, res) => {
 // @access  Private
 export const getShippingRates = async (req, res) => {
   try {
-    const { postalCode, paymentMethod = 'Online' } = req.body;
+    const { postalCode, paymentMethod = 'Online', buyNow } = req.body;
 
     if (!postalCode) {
       return res.status(400).json({ message: 'Delivery pincode is required' });
     }
 
-    const Cart = (await import('../models/Cart.js')).default;
-    const cart = await Cart.findOne({ user: req.user._id }).populate('items.product');
+    let orderItems;
+    let productsById;
 
-    if (!cart || cart.items.length === 0) {
-      return res.status(400).json({ message: 'Cart is empty' });
+    if (buyNow?.productId && buyNow?.quantity) {
+      const Product = (await import('../models/Product.js')).default;
+      const product = await Product.findById(buyNow.productId);
+      if (!product) {
+        return res.status(404).json({ message: 'Product not found' });
+      }
+
+      const quantity = Number(buyNow.quantity);
+      if (!Number.isInteger(quantity) || quantity < 1) {
+        return res.status(400).json({ message: 'Invalid quantity' });
+      }
+
+      orderItems = [{
+        product: product._id,
+        name: product.name,
+        quantity,
+        price: product.price,
+      }];
+      productsById = { [product._id.toString()]: product };
+    } else {
+      const Cart = (await import('../models/Cart.js')).default;
+      const cart = await Cart.findOne({ user: req.user._id }).populate('items.product');
+
+      if (!cart || cart.items.length === 0) {
+        return res.status(400).json({ message: 'Cart is empty' });
+      }
+
+      orderItems = cart.items
+        .filter((item) => item.product)
+        .map((item) => ({
+          product: item.product._id,
+          name: item.product.name,
+          quantity: item.quantity,
+          price: item.product.price,
+        }));
+
+      productsById = Object.fromEntries(
+        cart.items.filter((i) => i.product).map((i) => [i.product._id.toString(), i.product])
+      );
     }
 
-    const orderItems = cart.items
-      .filter((item) => item.product)
-      .map((item) => ({
-        product: item.product._id,
-        name: item.product.name,
-        quantity: item.quantity,
-        price: item.product.price,
-      }));
-
     const itemsPrice = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    const productsById = Object.fromEntries(
-      cart.items.filter((i) => i.product).map((i) => [i.product._id.toString(), i.product])
-    );
 
     const freeShippingThreshold = getFreeShippingThreshold();
     const isFree = isFreeShippingEligible(itemsPrice, freeShippingThreshold);

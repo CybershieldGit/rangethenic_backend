@@ -144,20 +144,89 @@ const emitProductStockUpdates = async (orderItems) => {
 // @access  Private
 const createOrder = async (req, res) => {
   try {
-    // 1. Fetch cart of user
-    const cart = await Cart.findOne({ user: req.user._id }).populate('items.product');
+    const { paymentMethod, couponCode, buyNow } = req.body;
+    const isBuyNow = Boolean(buyNow?.productId && buyNow?.quantity);
 
-    if (cart) {
-      cart.items = cart.items.filter(item => item.product !== null);
+    let cart;
+    let orderItems;
+    let productsById;
+    let itemsPrice = 0;
+
+    if (isBuyNow) {
+      const product = await Product.findById(buyNow.productId);
+      if (!product) {
+        return res.status(404).json({ message: 'Product not found' });
+      }
+
+      const quantity = Number(buyNow.quantity);
+      if (!Number.isInteger(quantity) || quantity < 1) {
+        return res.status(400).json({ message: 'Invalid quantity' });
+      }
+
+      if (product.countInStock < quantity) {
+        return res.status(400).json({
+          message: `Insufficient stock for "${product.name}". Available: ${product.countInStock}, Requested: ${quantity}`,
+        });
+      }
+
+      if (paymentMethod === 'COD' && product.isCODAllowed === false) {
+        return res.status(400).json({
+          message: `Cash on Delivery is not allowed for product "${product.name}".`,
+        });
+      }
+
+      const itemPrice = product.price;
+      itemsPrice = itemPrice * quantity;
+      orderItems = [{
+        product: product._id,
+        name: product.name,
+        quantity,
+        price: itemPrice,
+      }];
+      productsById = { [product._id.toString()]: product };
+    } else {
+      cart = await Cart.findOne({ user: req.user._id }).populate('items.product');
+
+      if (cart) {
+        cart.items = cart.items.filter(item => item.product !== null);
+      }
+
+      if (!cart || cart.items.length === 0) {
+        return res.status(400).json({ message: "Cart is empty" });
+      }
+
+      for (const item of cart.items) {
+        const product = item.product;
+        if (product.countInStock < item.quantity) {
+          return res.status(400).json({
+            message: `Insufficient stock for "${product.name}". Available: ${product.countInStock}, Requested: ${item.quantity}`,
+          });
+        }
+        if (paymentMethod === 'COD' && product.isCODAllowed === false) {
+          return res.status(400).json({
+            message: `Cash on Delivery is not allowed for product "${product.name}".`,
+          });
+        }
+      }
+
+      orderItems = cart.items.map((item) => {
+        const itemPrice = item.product.price;
+        const itemTotal = itemPrice * item.quantity;
+        itemsPrice += itemTotal;
+
+        return {
+          product: item.product._id,
+          name: item.product.name,
+          quantity: item.quantity,
+          price: itemPrice,
+        };
+      });
+
+      productsById = Object.fromEntries(
+        cart.items.filter((i) => i.product).map((i) => [i.product._id.toString(), i.product])
+      );
     }
 
-    // 2. Ensure cart is not empty
-    if (!cart || cart.items.length === 0) {
-      return res.status(400).json({ message: "Cart is empty" });
-    }
-
-    // 3. Ensure shipping address is provided and valid
-    const { paymentMethod, couponCode } = req.body;
     const addressCheck = validateShippingAddress(req.body.shippingAddress);
     if (!req.body.shippingAddress) {
       return res.status(400).json({ message: 'Shipping address is required' });
@@ -168,40 +237,6 @@ const createOrder = async (req, res) => {
       });
     }
     const shippingAddress = addressCheck.normalized;
-
-    // 4. Validate stock and COD eligibility for all items BEFORE creating order
-    for (const item of cart.items) {
-      const product = item.product;
-      if (product.countInStock < item.quantity) {
-        return res.status(400).json({
-          message: `Insufficient stock for "${product.name}". Available: ${product.countInStock}, Requested: ${item.quantity}`,
-        });
-      }
-      if (paymentMethod === 'COD' && product.isCODAllowed === false) {
-        return res.status(400).json({
-          message: `Cash on Delivery is not allowed for product "${product.name}".`,
-        });
-      }
-    }
-
-    // 5. Convert cart items -> orderItems & calculate itemsPrice server-side
-    let itemsPrice = 0;
-    const orderItems = cart.items.map((item) => {
-      const itemPrice = item.product.price;
-      const itemTotal = itemPrice * item.quantity;
-      itemsPrice += itemTotal;
-
-      return {
-        product: item.product._id,
-        name: item.product.name,
-        quantity: item.quantity,
-        price: itemPrice,
-      };
-    });
-
-    const productsById = Object.fromEntries(
-      cart.items.filter((i) => i.product).map((i) => [i.product._id.toString(), i.product])
-    );
 
     // 5b. Calculate shipping via Shiprocket (free over threshold from env)
     const freeShippingThreshold = getFreeShippingThreshold();
@@ -276,6 +311,7 @@ const createOrder = async (req, res) => {
         shippingAddress,
         paymentMethod: paymentMethod || 'Online',
         paymentStatus: paymentMethod === 'COD' ? 'COD' : 'Pending',
+        isBuyNow,
       });
 
       if (couponUsageRecord) {
@@ -298,8 +334,10 @@ const createOrder = async (req, res) => {
       // Emit real-time stock updates for the ordered products
       await emitProductStockUpdates(orderItems);
 
-      cart.items = [];
-      await cart.save();
+      if (!isBuyNow && cart) {
+        cart.items = [];
+        await cart.save();
+      }
 
       const populatedOrder = await Order.findById(order._id).populate('orderItems.product');
       await pushOrderToShiprocket(populatedOrder);
@@ -451,11 +489,13 @@ const verifyPayment = async (req, res) => {
     // Emit real-time stock updates for the ordered products
     await emitProductStockUpdates(order.orderItems);
 
-    // Clear user cart
-    const cart = await Cart.findOne({ user: req.user._id });
-    if (cart) {
-      cart.items = [];
-      await cart.save();
+    // Clear user cart for regular checkout only
+    if (!order.isBuyNow) {
+      const cart = await Cart.findOne({ user: req.user._id });
+      if (cart) {
+        cart.items = [];
+        await cart.save();
+      }
     }
 
     await order.save();

@@ -103,6 +103,10 @@ const orderSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    isBuyNow: {
+      type: Boolean,
+      default: false,
+    },
     deliveryStatus: {
       type: String,
       required: true,
