@@ -10,18 +10,22 @@ const getTrackingPageBase = () => {
 
 export const getTrackingPageUrl = () => getTrackingPageBase();
 
+export const CHANNEL_ORDER_PREFIX = 'RAKAA';
+
 export const getChannelOrderId = (order) => {
   if (order?.shiprocketChannelOrderId) return order.shiprocketChannelOrderId;
-  if (order?._id) return `RAKA-${order._id.toString().slice(-12).toUpperCase()}`;
+  if (order?._id) {
+    return `${CHANNEL_ORDER_PREFIX}-${order._id.toString().slice(-12).toUpperCase()}`;
+  }
   return null;
 };
 
 export const normalizeChannelOrderId = (input) => {
   const trimmed = String(input || '').trim().toUpperCase();
   if (!trimmed) return null;
-  if (trimmed.startsWith('RAKA-')) return trimmed;
+  if (trimmed.startsWith('RAKAA-') || trimmed.startsWith('RAKA-')) return trimmed;
   if (/^[A-F0-9]{8,24}$/.test(trimmed)) {
-    return `RAKA-${trimmed.slice(-12)}`;
+    return `${CHANNEL_ORDER_PREFIX}-${trimmed.slice(-12)}`;
   }
   return trimmed;
 };
@@ -33,7 +37,7 @@ export const resolveOrderFromChannelId = async (input) => {
   const byChannel = await Order.findOne({ shiprocketChannelOrderId: channelId });
   if (byChannel) return byChannel;
 
-  const suffix = channelId.replace(/^RAKA-/i, '').toUpperCase();
+  const suffix = channelId.replace(/^RAKAA?-/i, '').toUpperCase();
   if (!/^[A-F0-9]{12}$/.test(suffix)) return null;
 
   return Order.findOne({
@@ -46,7 +50,7 @@ export const resolveOrderFromChannelId = async (input) => {
   });
 };
 
-/** Branded Shiprocket page — https://rakaarituals.shiprocket.co/tracking?order_id=RAKA-xxx */
+/** Branded Shiprocket page — https://rakaarituals.shiprocket.co/tracking?order_id=RAKAA-xxx */
 export const buildBrandedTrackingUrl = ({ orderId, awb } = {}, order = null) => {
   const base = getTrackingPageBase();
 

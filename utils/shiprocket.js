@@ -1,3 +1,7 @@
+import { CHANNEL_ORDER_PREFIX, getChannelOrderId } from './tracking.js';
+
+export { getChannelOrderId };
+
 let cachedToken = null;
 let tokenExpiresAt = 0;
 let cachedPickupLocation = null;
@@ -474,7 +478,12 @@ export const ensurePickupLocation = async () => {
   return resolved;
 };
 
-export const getChannelOrderId = (order) => `RAKA-${order._id.toString().slice(-12).toUpperCase()}`;
+const formatProductSku = (product, item, index) => {
+  const raw =
+    product.sku ||
+    `${CHANNEL_ORDER_PREFIX}-${item.product?.toString?.()?.slice(-6) || index}`;
+  return raw.replace(/^RAKA(?!A)/i, CHANNEL_ORDER_PREFIX);
+};
 
 const parseCreateOrderResponse = (response = {}) => {
   const candidates = [
@@ -562,7 +571,7 @@ export const buildAdhocOrderPayload = (order, userEmail, productsById = {}, pick
     const product = productsById[item.product?.toString?.() || item.product] || {};
     return {
       name: item.name,
-      sku: product.sku || `RAKA-${item.product?.toString?.()?.slice(-6) || index}`,
+      sku: formatProductSku(product, item, index),
       units: item.quantity,
       selling_price: item.price,
       discount: '',
@@ -908,7 +917,7 @@ export const generateAWBForOrder = async (order, productsById = {}) => {
   return { shipmentId: String(shipmentId), courierId, ...awb };
 };
 
-/** Track by RAKA channel order id — matches branded page search (order_id=RAKA-xxx) */
+/** Track by RAKAA channel order id — matches branded page search (order_id=RAKAA-xxx) */
 export const trackByChannelOrderId = async (channelOrderId) => {
   const { channelId } = getShiprocketConfig();
   return trackByOrderAndChannel({

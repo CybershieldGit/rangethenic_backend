@@ -416,7 +416,7 @@ const buildPublicTrackingPayload = (parsed, extras = {}) => ({
 });
 
 // @desc    Public tracking lookup by RAKA order ID or AWB (no login required)
-// @route   GET /api/shipping/track-public?order_id=RAKA-xxx&awb=xxx
+// @route   GET /api/shipping/track-public?order_id=RAKAA-xxx&awb=xxx
 // @access  Public
 export const publicTrackHandler = async (req, res) => {
   try {
