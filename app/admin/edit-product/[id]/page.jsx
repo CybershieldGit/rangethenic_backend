@@ -9,13 +9,14 @@ import {
   uploadImage,
   uploadVideo,
   fetchCategories,
-  createCategory as createCategoryAPI,
-  deleteCategory as deleteCategoryAPI,
 } from "@/utils/api";
 
 const LoadingSpinner = ({ size = "w-4 h-4", color = "border-white" }) => (
   <div className={`${size} border-2 ${color} border-t-transparent rounded-full animate-spin`}></div>
 );
+
+// The two fixed main categories. Subcategories are managed on the Categories page.
+const MAIN_CATEGORIES = ["Clothing", "Jewellery"];
 
 export default function EditProductPage({ params }) {
   const router = useRouter();
@@ -27,6 +28,7 @@ export default function EditProductPage({ params }) {
     description: "",
     images: "",
     category: "",
+    subCategory: "",
     countInStock: 0,
     isBestSeller: false,
     isCODAllowed: true,
@@ -41,19 +43,24 @@ export default function EditProductPage({ params }) {
 
   // Category state
   const [categories, setCategories] = useState([]);
-  const [showNewCategory, setShowNewCategory] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState("");
-  const [creatingCategory, setCreatingCategory] = useState(false);
-  const [confirmDeleteCat, setConfirmDeleteCat] = useState(false);
-  const [deletingCategory, setDeletingCategory] = useState(false);
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const categoryRef = useRef(null);
 
-  // Close dropdown on outside click
+  // Subcategory state
+  const [subDropdownOpen, setSubDropdownOpen] = useState(false);
+  const subRef = useRef(null);
+
+  const selectedCategory = categories.find((c) => c.name === formData.category);
+  const subcategories = selectedCategory?.subcategories || [];
+
+  // Close dropdowns on outside click
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (categoryRef.current && !categoryRef.current.contains(e.target)) {
         setCategoryDropdownOpen(false);
+      }
+      if (subRef.current && !subRef.current.contains(e.target)) {
+        setSubDropdownOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -78,6 +85,7 @@ export default function EditProductPage({ params }) {
           description: product.description || "",
           images: product.images ? product.images.join(", ") : (product.image || ""),
           category: product.category || "",
+          subCategory: product.subCategory || "",
           countInStock: product.countInStock || 0,
           isBestSeller: product.isBestSeller || false,
           isCODAllowed: product.isCODAllowed !== undefined ? product.isCODAllowed : true,
@@ -278,257 +286,154 @@ export default function EditProductPage({ params }) {
               <label className="block text-[9px] uppercase font-black tracking-widest text-[#6f6a65] mb-2 ml-1">
                 Category
               </label>
-              {showNewCategory ? (
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newCategoryName}
-                    onChange={(e) => setNewCategoryName(e.target.value)}
-                    placeholder="New category name..."
-                    className="flex-1 p-3.5 rounded-2xl border border-[#e8e1d9] bg-[#fcfbf9] focus:ring-2 focus:ring-[#b89b5e]/20 focus:border-[#b89b5e] outline-none text-sm transition-all text-[#2b2622] font-semibold placeholder:text-[#6f6a65]/30 placeholder:italic"
-                    autoFocus
-                  />
-                  <button
-                    type="button"
-                    disabled={creatingCategory || !newCategoryName.trim()}
-                    onClick={async () => {
-                      setCreatingCategory(true);
-                      try {
-                        const created = await createCategoryAPI(
-                          newCategoryName.trim()
-                        );
-                        setCategories((prev) =>
-                          [...prev, created].sort((a, b) =>
-                            a.name.localeCompare(b.name)
-                          )
-                        );
-                        setFormData((prev) => ({
-                          ...prev,
-                          category: created.name,
-                        }));
-                        setNewCategoryName("");
-                        setShowNewCategory(false);
-                        showNotification(`Category "${created.name}" created.`);
-                      } catch (err) {
-                        showNotification(err.message, "error");
-                      } finally {
-                        setCreatingCategory(false);
-                      }
-                    }}
-                    className="px-4 py-3.5 rounded-2xl bg-[#2b2622] text-white text-[9px] font-black uppercase tracking-widest hover:bg-[#b89b5e] transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+              <div className="relative" ref={categoryRef}>
+                {/* Custom dropdown trigger */}
+                <button
+                  type="button"
+                  onClick={() => setCategoryDropdownOpen(!categoryDropdownOpen)}
+                  className={`w-full p-3.5 rounded-2xl border bg-[#fcfbf9] outline-none text-sm transition-all text-left font-semibold cursor-pointer flex items-center justify-between ${
+                    categoryDropdownOpen
+                      ? "border-[#b89b5e] ring-2 ring-[#b89b5e]/20"
+                      : "border-[#e8e1d9]"
+                  }`}
+                >
+                  <span
+                    className={
+                      formData.category
+                        ? "text-[#2b2622]"
+                        : "text-[#6f6a65]/30 italic"
+                    }
                   >
-                    {creatingCategory ? (
-                      <LoadingSpinner size="w-3 h-3" />
-                    ) : (
-                      "Add"
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowNewCategory(false);
-                      setNewCategoryName("");
-                    }}
-                    className="px-3 py-3.5 rounded-2xl border border-[#e8e1d9] text-[#6f6a65] text-[9px] font-black uppercase tracking-widest hover:border-[#2b2622] hover:text-[#2b2622] transition-all cursor-pointer"
+                    {formData.category || "Select a category..."}
+                  </span>
+                  <svg
+                    className={`w-4 h-4 text-[#6f6a65]/40 transition-transform duration-200 ${
+                      categoryDropdownOpen ? "rotate-180" : ""
+                    }`}
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
                   >
-                    Cancel
-                  </button>
-                </div>
-              ) : (
-                <div className="flex gap-2">
-                  <div className="relative flex-1" ref={categoryRef}>
-                    {/* Custom dropdown trigger */}
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setCategoryDropdownOpen(!categoryDropdownOpen)
-                      }
-                      className={`w-full p-3.5 rounded-2xl border bg-[#fcfbf9] outline-none text-sm transition-all text-left font-semibold cursor-pointer flex items-center justify-between ${
-                        categoryDropdownOpen
-                          ? "border-[#b89b5e] ring-2 ring-[#b89b5e]/20"
-                          : "border-[#e8e1d9]"
-                      }`}
-                    >
-                      <span
-                        className={
-                          formData.category
-                            ? "text-[#2b2622]"
-                            : "text-[#6f6a65]/30 italic"
-                        }
-                      >
-                        {formData.category || "Select a category..."}
-                      </span>
-                      <svg
-                        className={`w-4 h-4 text-[#6f6a65]/40 transition-transform duration-200 ${
-                          categoryDropdownOpen ? "rotate-180" : ""
-                        }`}
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M19.5 8.25l-7.5 7.5-7.5-7.5"
-                        />
-                      </svg>
-                    </button>
-
-                    {/* Custom dropdown panel */}
-                    {categoryDropdownOpen && (
-                      <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-[#e8e1d9] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.08)] z-50 overflow-hidden max-h-56 overflow-y-auto">
-                        {categories.length === 0 ? (
-                          <div className="p-4 text-center text-[#6f6a65]/40 text-xs italic">
-                            No categories yet. Click + New to create one.
-                          </div>
-                        ) : (
-                          categories.map((cat, idx) => (
-                            <button
-                              key={cat._id || cat.id || idx}
-                              type="button"
-                              onClick={() => {
-                                setFormData((prev) => ({
-                                  ...prev,
-                                  category: cat.name,
-                                }));
-                                setCategoryDropdownOpen(false);
-                                setConfirmDeleteCat(false);
-                              }}
-                              className={`w-full text-left px-5 py-3 text-sm font-semibold transition-all flex items-center justify-between group/opt ${
-                                formData.category === cat.name
-                                  ? "bg-[#b89b5e]/10 text-[#b89b5e]"
-                                  : "text-[#2b2622] hover:bg-[#fcfbf9]"
-                              }`}
-                            >
-                              <span>{cat.name}</span>
-                              {formData.category === cat.name && (
-                                <svg
-                                  className="w-4 h-4 text-[#b89b5e]"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="2.5"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    d="M4.5 12.75l6 6 9-13.5"
-                                  />
-                                </svg>
-                              )}
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    )}
-                    {/* Hidden required input for form validation */}
-                    <input
-                      type="text"
-                      value={formData.category}
-                      required
-                      className="sr-only"
-                      tabIndex={-1}
-                      onChange={() => {}}
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M19.5 8.25l-7.5 7.5-7.5-7.5"
                     />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowNewCategory(true)}
-                    className="px-4 py-3.5 rounded-2xl border-2 border-dashed border-[#dcd4cb] text-[#b89b5e] hover:border-[#b89b5e] hover:bg-[#b89b5e]/5 transition-all cursor-pointer flex items-center gap-1.5"
-                    title="Add new category"
-                  >
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M12 4.5v15m7.5-7.5h-15"
-                      />
-                    </svg>
-                    <span className="text-[9px] font-black uppercase tracking-widest hidden sm:inline">
-                      New
-                    </span>
-                  </button>
-                  {formData.category && (
-                    confirmDeleteCat ? (
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          disabled={deletingCategory}
-                          onClick={async () => {
-                            setDeletingCategory(true);
-                            try {
-                              const catToDelete = categories.find(
-                                (c) => c.name === formData.category
-                              );
-                              if (catToDelete) {
-                                await deleteCategoryAPI(catToDelete._id);
-                                setCategories((prev) =>
-                                  prev.filter((c) => c._id !== catToDelete._id)
-                                );
-                                setFormData((prev) => ({
-                                  ...prev,
-                                  category: "",
-                                }));
-                                showNotification(
-                                  `Category "${catToDelete.name}" deleted.`
-                                );
-                              }
-                            } catch (err) {
-                              showNotification(err.message, "error");
-                            } finally {
-                              setDeletingCategory(false);
-                              setConfirmDeleteCat(false);
-                            }
-                          }}
-                          className="px-3 py-2 rounded-xl bg-red-500 text-white text-[8px] font-black uppercase tracking-widest hover:bg-red-600 transition-all cursor-pointer disabled:opacity-40 flex items-center gap-1"
-                        >
-                          {deletingCategory ? (
-                            <LoadingSpinner size="w-3 h-3" />
-                          ) : (
-                            "Yes"
-                          )}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setConfirmDeleteCat(false)}
-                          className="px-3 py-2 rounded-xl border border-[#e8e1d9] text-[#6f6a65] text-[8px] font-black uppercase tracking-widest hover:text-[#2b2622] transition-all cursor-pointer"
-                        >
-                          No
-                        </button>
-                      </div>
-                    ) : (
+                  </svg>
+                </button>
+
+                {/* Custom dropdown panel — only the two fixed main categories */}
+                {categoryDropdownOpen && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-[#e8e1d9] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.08)] z-50 overflow-hidden max-h-56 overflow-y-auto">
+                    {MAIN_CATEGORIES.map((catName) => (
                       <button
+                        key={catName}
                         type="button"
-                        onClick={() => setConfirmDeleteCat(true)}
-                        className="px-3 py-3.5 rounded-2xl border border-red-200 text-red-300 hover:border-red-400 hover:text-red-500 hover:bg-red-50 transition-all cursor-pointer flex items-center gap-1.5"
-                        title="Delete selected category"
+                        onClick={() => {
+                          setFormData((prev) => ({
+                            ...prev,
+                            category: catName,
+                            subCategory: "",
+                          }));
+                          setCategoryDropdownOpen(false);
+                        }}
+                        className={`w-full text-left px-5 py-3 text-sm font-semibold transition-all flex items-center justify-between ${
+                          formData.category === catName
+                            ? "bg-[#b89b5e]/10 text-[#b89b5e]"
+                            : "text-[#2b2622] hover:bg-[#fcfbf9]"
+                        }`}
                       >
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
-                          />
-                        </svg>
+                        <span>{catName}</span>
+                        {formData.category === catName && (
+                          <svg
+                            className="w-4 h-4 text-[#b89b5e]"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.5"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M4.5 12.75l6 6 9-13.5"
+                            />
+                          </svg>
+                        )}
                       </button>
-                    )
+                    ))}
+                  </div>
+                )}
+                {/* Hidden required input for form validation */}
+                <input
+                  type="text"
+                  value={formData.category}
+                  required
+                  className="sr-only"
+                  tabIndex={-1}
+                  onChange={() => {}}
+                />
+              </div>
+            </div>
+
+            {/* Subcategory */}
+            {formData.category && (
+              <div>
+                <label className="block text-[9px] uppercase font-black tracking-widest text-[#6f6a65] mb-2 ml-1">
+                  Subcategory <span className="text-[#b89b5e] normal-case font-bold">(optional)</span>
+                </label>
+                <div className="relative" ref={subRef}>
+                  <button type="button"
+                    onClick={() => setSubDropdownOpen(!subDropdownOpen)}
+                    className={`w-full p-3.5 rounded-2xl border bg-[#fcfbf9] outline-none text-sm transition-all text-left font-semibold cursor-pointer flex items-center justify-between ${
+                      subDropdownOpen ? 'border-[#b89b5e] ring-2 ring-[#b89b5e]/20' : 'border-[#e8e1d9]'
+                    }`}
+                  >
+                    <span className={formData.subCategory ? 'text-[#2b2622]' : 'text-[#6f6a65]/30 italic'}>
+                      {formData.subCategory || 'Select a subcategory...'}
+                    </span>
+                    <svg className={`w-4 h-4 text-[#6f6a65]/40 transition-transform duration-200 ${subDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                    </svg>
+                  </button>
+
+                  {subDropdownOpen && (
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-[#e8e1d9] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.08)] z-50 overflow-hidden max-h-56 overflow-y-auto">
+                      {formData.subCategory && (
+                        <button type="button"
+                          onClick={() => { setFormData((prev) => ({ ...prev, subCategory: "" })); setSubDropdownOpen(false); }}
+                          className="w-full text-left px-5 py-3 text-sm font-semibold text-[#6f6a65]/60 italic hover:bg-[#fcfbf9] transition-all"
+                        >
+                          Clear selection
+                        </button>
+                      )}
+                      {subcategories.length === 0 ? (
+                        <div className="p-4 text-center text-[#6f6a65]/40 text-xs italic">No subcategories yet. Add them from the Categories page in the sidebar.</div>
+                      ) : (
+                        subcategories.map((sub, idx) => (
+                          <button key={idx} type="button"
+                            onClick={() => {
+                              setFormData((prev) => ({ ...prev, subCategory: sub }));
+                              setSubDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-5 py-3 text-sm font-semibold transition-all flex items-center justify-between ${
+                              formData.subCategory === sub ? 'bg-[#b89b5e]/10 text-[#b89b5e]' : 'text-[#2b2622] hover:bg-[#fcfbf9]'
+                            }`}
+                          >
+                            <span>{sub}</span>
+                            {formData.subCategory === sub && (
+                              <svg className="w-4 h-4 text-[#b89b5e]" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                              </svg>
+                            )}
+                          </button>
+                        ))
+                      )}
+                    </div>
                   )}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
 

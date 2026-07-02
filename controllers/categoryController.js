@@ -19,7 +19,7 @@ const getCategories = async (req, res) => {
 // @access  Private/Admin
 const createCategory = async (req, res) => {
   try {
-    const { name, description } = req.body;
+    const { name, description, subcategories } = req.body;
 
     if (!name || !name.trim()) {
       return res.status(400).json({ message: 'Category name is required' });
@@ -34,14 +34,100 @@ const createCategory = async (req, res) => {
       return res.status(400).json({ message: 'Category already exists' });
     }
 
+    // Normalize subcategories: trim, drop empties, de-duplicate (case-insensitive)
+    let subs = [];
+    if (Array.isArray(subcategories)) {
+      const seen = new Set();
+      subs = subcategories
+        .map((s) => (typeof s === 'string' ? s.trim() : ''))
+        .filter((s) => {
+          if (!s) return false;
+          const key = s.toLowerCase();
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+    }
+
     const category = await Category.create({
       name: name.trim(),
       description: description || '',
+      subcategories: subs,
     });
 
     res.status(201).json(category);
   } catch (error) {
     console.error('Error in createCategory:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Add a subcategory to a category
+// @route   POST /api/categories/:id/subcategories
+// @access  Private/Admin
+const addSubcategory = async (req, res) => {
+  try {
+    const { name } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ message: 'Subcategory name is required' });
+    }
+
+    const category = await Category.findById(req.params.id);
+    if (!category) {
+      return res.status(404).json({ message: 'Category not found' });
+    }
+
+    const trimmed = name.trim();
+    const exists = category.subcategories.some(
+      (s) => s.toLowerCase() === trimmed.toLowerCase()
+    );
+
+    if (exists) {
+      return res.status(400).json({ message: 'Subcategory already exists in this category' });
+    }
+
+    category.subcategories.push(trimmed);
+    const updated = await category.save();
+
+    res.status(201).json(updated);
+  } catch (error) {
+    console.error('Error in addSubcategory:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Remove a subcategory from a category
+// @route   DELETE /api/categories/:id/subcategories
+// @access  Private/Admin
+const deleteSubcategory = async (req, res) => {
+  try {
+    const name = req.body.name || req.query.name;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ message: 'Subcategory name is required' });
+    }
+
+    const category = await Category.findById(req.params.id);
+    if (!category) {
+      return res.status(404).json({ message: 'Category not found' });
+    }
+
+    const trimmed = name.trim();
+    category.subcategories = category.subcategories.filter(
+      (s) => s.toLowerCase() !== trimmed.toLowerCase()
+    );
+    const updated = await category.save();
+
+    // Clear this subcategory from any products that used it
+    await Product.updateMany(
+      { category: category.name, subCategory: trimmed },
+      { subCategory: '' }
+    );
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Error in deleteSubcategory:', error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -149,4 +235,12 @@ const shiftCategoryProducts = async (req, res) => {
   }
 };
 
-export { getCategories, createCategory, deleteCategory, updateCategory, shiftCategoryProducts };
+export {
+  getCategories,
+  createCategory,
+  addSubcategory,
+  deleteSubcategory,
+  deleteCategory,
+  updateCategory,
+  shiftCategoryProducts,
+};
