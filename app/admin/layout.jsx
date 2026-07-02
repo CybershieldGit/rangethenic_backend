@@ -11,6 +11,27 @@ const notoSerif = Noto_Serif({
   variable: "--font-noto-serif",
 });
 
+import { Mail, Lock, User, Eye, EyeOff, AlertCircle } from "lucide-react";
+
+function Corner({ className }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`pointer-events-none absolute h-10 w-10 ${className}`}
+      style={{
+        backgroundColor: '#420001',
+        WebkitMaskImage: 'url(/corner_sqare.svg)',
+        maskImage: 'url(/corner_sqare.svg)',
+        WebkitMaskRepeat: 'no-repeat',
+        maskRepeat: 'no-repeat',
+        WebkitMaskSize: 'contain',
+        maskSize: 'contain',
+      }}
+    />
+  );
+}
+
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5005";
 
 // --- Minimalist SVG Icons ---
@@ -89,6 +110,8 @@ export default function AdminLayout({ children }) {
   const [isAdminRegister, setIsAdminRegister] = useState(false);
   const [authError, setAuthError] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -203,104 +226,181 @@ export default function AdminLayout({ children }) {
 
   if (!isAuthorized) {
     return (
-      <div className={`${notoSerif.variable} admin-theme min-h-screen bg-[#f7f6f1] flex flex-col items-center justify-center p-6`}>
-        <div className="w-full max-w-md bg-white/80 backdrop-blur-xl rounded-[32px] p-8 md:p-10 shadow-2xl border border-[#2b2622]/5">
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-serif text-[#2b2622] tracking-tighter leading-none">Rakaarituals</h2>
-            <p className="text-[10px] text-[#6f6a65] uppercase font-black tracking-[0.3em] mt-3 bg-[#e8e1d9] inline-block px-3 py-1 rounded-full">Admin Gate</p>
+      <div className={`${notoSerif.variable} min-h-screen bg-[#FDF8F0] flex items-center justify-center py-8 px-4 md:px-8 md:py-10`}>
+        <div className="w-full max-w-7xl mx-auto flex flex-col lg:flex-row lg:items-stretch gap-8 lg:gap-10">
+          {/* Left Image (Desktop only) */}
+          <div className="relative hidden lg:block min-h-[480px] flex-1 overflow-hidden">
+            <img
+              src="/images/login.png"
+              alt="Rangethnics ethnic wear"
+              className="absolute inset-0 h-full w-full object-cover object-center"
+            />
           </div>
 
-          {/* Mode Switcher */}
-          <div className="grid grid-cols-2 gap-2 bg-[#f8f5f2] p-1 rounded-2xl border border-[#2b2622]/5 mb-6">
-            <button
-              onClick={() => { setIsAdminRegister(false); setAuthError(""); }}
-              className={`py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300 ${!isAdminRegister
-                ? "bg-[#2b2622] text-white shadow-md cursor-pointer"
-                : "text-[#6f6a65] hover:text-[#2b2622] cursor-pointer"
-                }`}
-            >
-              Admin Login
-            </button>
-            <button
-              onClick={() => { setIsAdminRegister(true); setAuthError(""); }}
-              className={`py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300 ${isAdminRegister
-                ? "bg-[#2b2622] text-white shadow-md cursor-pointer"
-                : "text-[#6f6a65] hover:text-[#2b2622] cursor-pointer"
-                }`}
-            >
-              Sign Up
-            </button>
-          </div>
+          {/* Right Card Container */}
+          <div className="flex w-full items-start justify-center lg:min-h-[480px] lg:w-[508px] lg:shrink-0 lg:justify-end">
+            <div className="relative mx-auto w-full max-w-[508px]">
+              <div className="relative flex min-h-[480px] w-full flex-col border border-[#BD8A3C]/50 bg-[#FFF9F3] px-9 py-10">
+                {/* Ornate frame inset from the card edges */}
+                <div className="pointer-events-none absolute inset-3">
+                  <Corner className="left-0 top-0" />
+                  <Corner className="right-0 top-0 -scale-x-100" />
+                  <Corner className="left-0 bottom-0 -scale-y-100" />
+                  <Corner className="right-0 bottom-0 -scale-100" />
 
-          {authError && (
-            <div className="bg-rose-50 border border-rose-100 text-rose-600 text-xs rounded-xl p-4 mb-6 font-medium italic">
-              ⚠️ {authError}
-            </div>
-          )}
+                  {/* Connecting gold rules on all four sides, aligned past the corners */}
+                  <span className="absolute left-11 right-11 top-0 h-px bg-[#BD8A3C]/50" />
+                  <span className="absolute left-11 right-11 bottom-0 h-px bg-[#BD8A3C]/50" />
+                  <span className="absolute top-11 bottom-11 left-0 w-px bg-[#BD8A3C]/50" />
+                  <span className="absolute top-11 bottom-11 right-0 w-px bg-[#BD8A3C]/50" />
+                </div>
 
-          <form onSubmit={handleAuthSubmit} className="space-y-5">
-            {isAdminRegister && (
-              <div className="space-y-1.5 flex flex-col">
-                <label className="text-[10px] uppercase tracking-widest text-[#6f6a65] font-bold ml-1">Full Name</label>
-                <input
-                  type="text"
-                  name="name"
-                  required
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  className="w-full bg-[#f8f5f2] border-0 rounded-xl px-4 py-3 text-sm text-[#2b2622] focus:ring-2 focus:ring-[#b89b5e]/20 transition-all outline-none italic placeholder:text-[#6f6a65]/40"
-                  placeholder="Enter name"
-                />
+                <div className="relative text-center">
+                  <h1 className="font-serif text-[36px] font-bold leading-tight text-[#420001]" style={{ fontFamily: "var(--font-noto-serif), Georgia, serif" }}>
+                    {isAdminRegister ? "Create Account" : "Welcome"}
+                  </h1>
+                  <p className="mt-2 font-sans text-[16px] leading-relaxed text-[#8E8E8E]">
+                    {isAdminRegister ? "Sign Up discover our exclusive collection" : "Login to continue to your account"}
+                  </p>
+                  <img
+                    src="/historical_seperator.svg"
+                    alt=""
+                    className="mx-auto mt-5 h-4 w-auto"
+                  />
+                </div>
+
+                <div className="relative mt-6 flex flex-1 flex-col">
+                  {authError && (
+                    <div className="mb-5 flex items-center gap-3 bg-[#FF00001A] px-4 py-3">
+                      <AlertCircle size={28} className="mt-0.5 shrink-0 text-[#420001]" />
+                      <div className="text-left">
+                        <p className="font-sans text-sm font-semibold text-[#420001]">{isAdminRegister ? "Registration failed" : "Login failed"}</p>
+                        <p className="mt-0.5 font-sans text-[10px] text-[#420001]">{authError}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  <form onSubmit={handleAuthSubmit} className="flex flex-1 flex-col">
+                    <div className="space-y-3">
+                      {isAdminRegister && (
+                        <div className="relative w-full">
+                          <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#A89E96]">
+                            <User size={17} strokeWidth={1.5} />
+                          </span>
+                          <input
+                            type="text"
+                            name="name"
+                            required
+                            value={formData.name}
+                            onChange={handleInputChange}
+                            placeholder="Enter your full name"
+                            className="h-[46px] w-full rounded-none border border-[#BD8A3C4D] bg-[#BD8A3C0A] font-sans text-sm text-[#4a3f38] placeholder:text-[#A89E96] focus:border-[#420001] focus:outline-none focus:ring-0 pl-10 pr-3.5"
+                          />
+                        </div>
+                      )}
+
+                      <div className="relative w-full">
+                        <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#A89E96]">
+                          <Mail size={17} strokeWidth={1.5} />
+                        </span>
+                        <input
+                          type="email"
+                          name="email"
+                          required
+                          value={formData.email}
+                          onChange={handleInputChange}
+                          placeholder="Enter your email"
+                          className="h-[46px] w-full rounded-none border border-[#BD8A3C4D] bg-[#BD8A3C0A] font-sans text-sm text-[#4a3f38] placeholder:text-[#A89E96] focus:border-[#420001] focus:outline-none focus:ring-0 pl-10 pr-3.5"
+                        />
+                      </div>
+
+                      <div>
+                        <div className="relative w-full">
+                          <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#A89E96]">
+                            <Lock size={17} strokeWidth={1.5} />
+                          </span>
+                          <input
+                            type={showPassword ? 'text' : 'password'}
+                            name="password"
+                            required
+                            value={formData.password}
+                            onChange={handleInputChange}
+                            placeholder="Enter your password"
+                            className="h-[46px] w-full rounded-none border border-[#BD8A3C4D] bg-[#BD8A3C0A] font-sans text-sm text-[#4a3f38] placeholder:text-[#A89E96] focus:border-[#420001] focus:outline-none focus:ring-0 pl-10 pr-10"
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2">
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword(!showPassword)}
+                              className="text-[#A89E96] hover:text-[#420001] cursor-pointer bg-transparent border-0 p-0"
+                              aria-label={showPassword ? 'Hide password' : 'Show password'}
+                            >
+                              {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                            </button>
+                          </span>
+                        </div>
+                        {!isAdminRegister && (
+                          <div className="mt-2 text-right">
+                            <Link
+                              href="/admin/reset-password"
+                              className="font-sans text-[14px] font-medium text-[#420001] hover:underline"
+                            >
+                              Forgot Password?
+                            </Link>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {isAdminRegister && (
+                      <p className="mt-3 text-left font-sans text-[11px] leading-relaxed text-[#9A9088]">
+                        By proceeding ahead you agreed our Terms &amp; Conditions.
+                      </p>
+                    )}
+
+                    <div className="mt-5">
+                      <button
+                        type="submit"
+                        disabled={authLoading}
+                        className="h-[46px] w-full rounded-none bg-[#420001] font-sans text-[16px] font-semibold tracking-wide text-white transition-colors hover:bg-[#2e0001] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer border-0"
+                      >
+                        {authLoading ? (isAdminRegister ? "Sending OTP..." : "Logging in...") : (isAdminRegister ? "Register" : "Login")}
+                      </button>
+                    </div>
+                  </form>
+
+                  <p className="mt-auto pt-6 text-center font-sans text-[16px] text-[#8E8E8E]">
+                    {isAdminRegister ? (
+                      <>
+                        Already have an account?{' '}
+                        <button
+                          onClick={() => { setIsAdminRegister(false); setAuthError(""); }}
+                          className="font-bold text-[#420001] hover:underline cursor-pointer bg-transparent border-0 p-0"
+                        >
+                          Login
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        Don&apos;t have account?{' '}
+                        <button
+                          onClick={() => { setIsAdminRegister(true); setAuthError(""); }}
+                          className="font-bold text-[#420001] hover:underline cursor-pointer bg-transparent border-0 p-0"
+                        >
+                          Register
+                        </button>
+                      </>
+                    )}
+                  </p>
+                </div>
               </div>
-            )}
-
-            <div className="space-y-1.5 flex flex-col">
-              <label className="text-[10px] uppercase tracking-widest text-[#6f6a65] font-bold ml-1">Email Address</label>
-              <input
-                type="email"
-                name="email"
-                required
-                value={formData.email}
-                onChange={handleInputChange}
-                className="w-full bg-[#f8f5f2] border-0 rounded-xl px-4 py-3 text-sm text-[#2b2622] focus:ring-2 focus:ring-[#b89b5e]/20 transition-all outline-none italic placeholder:text-[#6f6a65]/40"
-                placeholder="Enter admin email"
-              />
             </div>
-
-            <div className="space-y-1.5 flex flex-col">
-              <label className="text-[10px] uppercase tracking-widest text-[#6f6a65] font-bold ml-1">Password</label>
-              <input
-                type="password"
-                name="password"
-                required
-                value={formData.password}
-                onChange={handleInputChange}
-                className="w-full bg-[#f8f5f2] border-0 rounded-xl px-4 py-3 text-sm text-[#2b2622] focus:ring-2 focus:ring-[#b89b5e]/20 transition-all outline-none italic placeholder:text-[#6f6a65]/40"
-                placeholder="Enter password"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={authLoading}
-              className="w-full py-4 bg-[#b89b5e] hover:bg-[#2b2622] text-white font-bold uppercase tracking-[0.2em] text-xs rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5 cursor-pointer mt-4"
-            >
-              {authLoading ? "Verifying..." : isAdminRegister ? "Register Admin Account" : "Access Admin Panel"}
-            </button>
-          </form>
-
-          <div className="mt-8 text-center">
-            <Link
-              href="/"
-              className="text-[10px] uppercase tracking-widest text-[#6f6a65] font-bold hover:text-[#b89b5e] transition-colors"
-            >
-              ← Back to Temple
-            </Link>
           </div>
         </div>
       </div>
     );
   }
+
 
   const NavLink = ({ href, icon, children }) => (
     <Link
