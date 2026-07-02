@@ -136,4 +136,24 @@ const removeFromCart = async (req, res) => {
   }
 };
 
-export { getUserCart, addToCart, updateCartItem, removeFromCart };
+// @desc    Clear all items from the cart
+// @route   DELETE /api/cart
+// @access  Private
+const clearCart = async (req, res) => {
+  try {
+    const cart = await Cart.findOne({ user: req.user._id });
+
+    if (cart) {
+      cart.items = [];
+      await cart.save();
+      return res.json(cart);
+    }
+
+    res.json({ user: req.user._id, items: [] });
+  } catch (error) {
+    console.error('Error in clearCart:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export { getUserCart, addToCart, updateCartItem, removeFromCart, clearCart };
