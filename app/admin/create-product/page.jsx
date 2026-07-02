@@ -605,8 +605,8 @@ export default function CreateProductPage() {
                 className="w-5 h-5 accent-[#b89b5e] cursor-pointer rounded"
               />
               <div>
-                <label htmlFor="isBestSeller" className="text-[10px] font-black uppercase tracking-widest text-[#2b2622] cursor-pointer block">Mark as Bestseller</label>
-                <p className="text-[9px] text-[#6f6a65]/60 italic mt-0.5">This product will appear in the featured section</p>
+                <label htmlFor="isBestSeller" className="text-[10px] font-black uppercase tracking-widest text-[#2b2622] cursor-pointer block">Mark as Most Sellings</label>
+                <p className="text-[9px] text-[#6f6a65]/60 italic mt-0.5">This product will appear in the most sellings section</p>
               </div>
             </div>
             <div className="flex items-center gap-4 bg-[#fcfbf9] p-3.5 rounded-2xl border border-[#e8e1d9]">
