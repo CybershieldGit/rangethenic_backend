@@ -433,3 +433,25 @@ export const createProductReview = async (productId, reviewData) => {
     body: JSON.stringify(reviewData),
   });
 };
+
+// --- ATTRIBUTES API ---
+
+export const fetchAttributes = async (type = "") => {
+  const params = new URLSearchParams();
+  if (type) params.append("type", type);
+  return apiFetch(`/api/attributes?${params.toString()}`);
+};
+
+export const createAttributeAPI = async (type, value) => {
+  return apiFetch("/api/attributes", {
+    method: "POST",
+    body: JSON.stringify({ type, value }),
+  });
+};
+
+export const deleteAttributeAPI = async (id) => {
+  return apiFetch(`/api/attributes/${id}`, {
+    method: "DELETE",
+  });
+};
+

@@ -28,6 +28,12 @@ const productSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    discountPercentage: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 100,
+    },
     images: {
       type: [String],
       default: [],
@@ -100,6 +106,22 @@ const productSchema = new mongoose.Schema(
     video: {
       type: String,
       default: '',
+    },
+    sizes: {
+      type: [String],
+      default: [],
+    },
+    colors: {
+      type: [String],
+      default: [],
+    },
+    fabrics: {
+      type: [String],
+      default: [],
+    },
+    works: {
+      type: [String],
+      default: [],
     },
     reviews: [reviewSchema],
     rating: {

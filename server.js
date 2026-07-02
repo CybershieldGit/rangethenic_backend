@@ -16,6 +16,7 @@ import categoryRoutes from './routes/categoryRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
 import couponRoutes from './routes/couponRoutes.js';
 import shippingRoutes from './routes/shippingRoutes.js';
+import attributeRoutes from './routes/attributeRoutes.js';
 
 const dev = process.env.NODE_ENV !== 'production';
 const nextApp = next({ dev });
@@ -43,6 +44,7 @@ nextApp.prepare().then(() => {
   app.use('/api/upload', uploadRoutes);
   app.use('/api/coupons', couponRoutes);
   app.use('/api/shipping', shippingRoutes);
+  app.use('/api/attributes', attributeRoutes);
 
   // Let Next.js handle all other requests
   app.all('*', (req, res) => {
