@@ -12,15 +12,26 @@ const otpSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    isAdmin: {
-      type: Boolean,
+    purpose: {
+      type: String,
+      enum: ['signup', 'reset'],
       required: true,
-      default: false,
+    },
+    name: {
+      type: String,
+      default: '',
+    },
+    password: {
+      type: String,
+      default: '',
+    },
+    lastSentAt: {
+      type: Date,
+      default: Date.now,
     },
     createdAt: {
       type: Date,
       default: Date.now,
-      expires: 600, // Expires in 10 minutes (600 seconds)
     },
   },
   {
@@ -28,8 +39,8 @@ const otpSchema = new mongoose.Schema(
   }
 );
 
-// Add index on email for quick lookups
-otpSchema.index({ email: 1 });
+otpSchema.index({ email: 1, purpose: 1 });
+otpSchema.index({ createdAt: 1 }, { expireAfterSeconds: 600 });
 
 const OTP = mongoose.model('OTP', otpSchema);
 
