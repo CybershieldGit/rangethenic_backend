@@ -780,10 +780,10 @@ export default function EditProductPage({ params }) {
                   htmlFor="isBestSeller"
                   className="text-[10px] font-black uppercase tracking-widest text-[#2b2622] cursor-pointer block"
                 >
-                  Mark as Bestseller
+                  Mark as Most Sellings
                 </label>
                 <p className="text-[9px] text-[#6f6a65]/60 italic mt-0.5">
-                  This product will appear in the featured section
+                  This product will appear in the most sellings section
                 </p>
               </div>
             </div>

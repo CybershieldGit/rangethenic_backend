@@ -55,7 +55,7 @@ const ProductRow = ({ product, onDelete, onToggleBestseller, onToggleFeatured, i
           : 'bg-transparent text-[#6f6a65]/50 border-[#dcd4cb] hover:border-[#b89b5e] hover:text-[#b89b5e] hover:bg-[#b89b5e]/5'
         }`}
       >
-        {isToggling ? <LoadingSpinner color={product.isBestSeller ? "border-white" : "border-[#b89b5e]"} /> : (product.isBestSeller ? 'Bestseller' : 'Standard')}
+        {isToggling ? <LoadingSpinner color={product.isBestSeller ? "border-white" : "border-[#b89b5e]"} /> : (product.isBestSeller ? 'Most Sellings' : 'Standard')}
       </button>
     </td>
     <td className="p-8">
@@ -68,7 +68,7 @@ const ProductRow = ({ product, onDelete, onToggleBestseller, onToggleFeatured, i
           : 'bg-transparent text-[#6f6a65]/50 border-[#dcd4cb] hover:border-emerald-600 hover:text-emerald-600 hover:bg-emerald-50/5'
         }`}
       >
-        {isTogglingFeatured ? <LoadingSpinner color={product.isFeatured ? "border-white" : "border-emerald-600"} /> : (product.isFeatured ? 'Featured' : 'Regular')}
+        {isTogglingFeatured ? <LoadingSpinner color={product.isFeatured ? "border-white" : "border-emerald-600"} /> : (product.isFeatured ? 'New Arrival' : 'Regular')}
       </button>
     </td>
     <td className="p-8">
@@ -243,7 +243,7 @@ export default function AdminProductsPage() {
       } else {
         setProducts(products.map(p => p._id === id ? { ...p, isFeatured: false } : p));
       }
-      showNotification(newStatus ? "Product set as Featured." : "Featured status removed.");
+      showNotification(newStatus ? "Product set as New Arrival." : "New Arrival status removed.");
     } catch (err) {
       showNotification(err.message, "error");
     } finally {
@@ -337,7 +337,7 @@ export default function AdminProductsPage() {
                 <th className="p-10 font-black text-[#6f6a65]/40 text-[10px] uppercase tracking-[0.3em]">Value</th>
                 <th className="p-10 font-black text-[#6f6a65]/40 text-[10px] uppercase tracking-[0.3em]">Reserve</th>
                 <th className="p-10 font-black text-[#6f6a65]/40 text-[10px] uppercase tracking-[0.3em]">Stature</th>
-                <th className="p-10 font-black text-[#6f6a65]/40 text-[10px] uppercase tracking-[0.3em]">Featured</th>
+                <th className="p-10 font-black text-[#6f6a65]/40 text-[10px] uppercase tracking-[0.3em]">New Arrivals</th>
                 <th className="p-10 font-black text-[#6f6a65]/40 text-[10px] uppercase tracking-[0.3em]">Actions</th>
               </tr>
             </thead>
