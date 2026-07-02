@@ -11,7 +11,7 @@ const notoSerif = Noto_Serif({
   variable: "--font-noto-serif",
 });
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5005";
 
 // --- Minimalist SVG Icons ---
 const DashboardIcon = () => (
@@ -95,7 +95,7 @@ export default function AdminLayout({ children }) {
     setAuthLoading(true);
 
     try {
-      const endpoint = isAdminRegister ? "/api/auth/register" : "/api/auth/login";
+      const endpoint = isAdminRegister ? "/api/auth/admin/register" : "/api/auth/admin/login";
       const url = `${API_URL}${endpoint}`;
 
       const bodyData = isAdminRegister

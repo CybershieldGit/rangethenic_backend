@@ -1,0 +1,25 @@
+{
+  "watch": [
+    "server.js",
+    "config",
+    "controllers",
+    "routes",
+    "models",
+    "middleware",
+    "utils"
+  ],
+  "ext": "js,json",
+  "ignore": [
+    ".next",
+    "app",
+    "components",
+    "context",
+    "pages",
+    "public",
+    "utils/api.js",
+    "utils/auth.js",
+    "utils/tokenUtils.js",
+    "utils/orderStatusClient.js"
+  ],
+  "delay": "1500"
+}

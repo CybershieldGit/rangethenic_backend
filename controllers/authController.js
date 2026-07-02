@@ -191,6 +191,87 @@ const authUser = async (req, res, next) => {
   }
 };
 
+// @desc    Register a new admin account (direct, no OTP)
+// @route   POST /api/auth/admin/register
+// @access  Public (optionally gated by ADMIN_SIGNUP_SECRET)
+const adminRegister = async (req, res, next) => {
+  try {
+    const { name, email, password, secret } = req.body;
+
+    if (!name || !email || !password) {
+      res.status(400);
+      throw new Error('Please provide name, email, and password');
+    }
+
+    if (password.length < 6) {
+      res.status(400);
+      throw new Error('Password must be at least 6 characters');
+    }
+
+    // Optional protection: if ADMIN_SIGNUP_SECRET is set, require it.
+    const requiredSecret = process.env.ADMIN_SIGNUP_SECRET;
+    if (requiredSecret && secret !== requiredSecret) {
+      res.status(403);
+      throw new Error('Invalid admin signup secret');
+    }
+
+    const userExists = await User.findOne({ email });
+    if (userExists) {
+      res.status(400);
+      throw new Error('An account with this email already exists');
+    }
+
+    const user = await User.create({
+      name,
+      email,
+      password,
+      isAdmin: true,
+      isVerified: true,
+    });
+
+    res.status(201).json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      isAdmin: user.isAdmin,
+      token: generateToken(user._id),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Admin login & get token
+// @route   POST /api/auth/admin/login
+// @access  Public
+const adminLogin = async (req, res, next) => {
+  try {
+    const { email, password } = req.body;
+
+    const user = await User.findOne({ email });
+
+    if (user && (await user.matchPassword(password))) {
+      if (!user.isAdmin) {
+        res.status(403);
+        throw new Error('This account does not have admin privileges');
+      }
+
+      res.json({
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        isAdmin: user.isAdmin,
+        token: generateToken(user._id),
+      });
+    } else {
+      res.status(401);
+      throw new Error('Invalid email or password');
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @desc    Send password reset OTP
 // @route   POST /api/auth/forgot-password
 // @access  Public
@@ -271,7 +352,8 @@ const verifyResetOtp = async (req, res, next) => {
 // @access  Public
 const resetPassword = async (req, res, next) => {
   try {
-    const { resetToken, password } = req.body;
+    const { password } = req.body;
+    const resetToken = req.body.resetToken || req.body.token;
 
     if (!resetToken || !password) {
       res.status(400);
@@ -324,6 +406,8 @@ export {
   verifySignupOtp,
   resendOtp,
   authUser,
+  adminRegister,
+  adminLogin,
   forgotPassword,
   verifyResetOtp,
   resetPassword,
