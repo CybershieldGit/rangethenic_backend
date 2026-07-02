@@ -50,6 +50,31 @@ const CategoriesIcon = () => (
   </svg>
 );
 
+const SizeIcon = () => (
+  <svg className="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3 6h18M3 12h18M3 18h18M8 6v12" />
+  </svg>
+);
+
+const ColorIcon = () => (
+  <svg className="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-3" />
+  </svg>
+);
+
+const FabricIcon = () => (
+  <svg className="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v18M3 12h18M6 6l12 12M6 18L18 6" />
+  </svg>
+);
+
+const WorkIcon = () => (
+  <svg className="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+  </svg>
+);
+
 export default function AdminLayout({ children }) {
   const router = useRouter();
   const [isAuthorized, setIsAuthorized] = useState(false);
@@ -354,6 +379,10 @@ export default function AdminLayout({ children }) {
               <NavLink href="/admin" icon={<DashboardIcon />}>Dashboard</NavLink>
               <NavLink href="/admin/products" icon={<ProductsIcon />}>Products</NavLink>
               <NavLink href="/admin/categories" icon={<CategoriesIcon />}>Categories</NavLink>
+              <NavLink href="/admin/sizes" icon={<SizeIcon />}>Size</NavLink>
+              <NavLink href="/admin/colors" icon={<ColorIcon />}>Color</NavLink>
+              <NavLink href="/admin/fabrics" icon={<FabricIcon />}>Fabric</NavLink>
+              <NavLink href="/admin/works" icon={<WorkIcon />}>Work</NavLink>
               <NavLink href="/admin/orders" icon={<OrdersIcon />}>Orders</NavLink>
               <NavLink href="/admin/coupons" icon={<CouponsIcon />}>Coupons</NavLink>
             </nav>

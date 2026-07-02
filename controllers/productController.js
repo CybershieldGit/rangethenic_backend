@@ -111,7 +111,7 @@ const getFeaturedProduct = async (req, res) => {
 // @route   POST /api/products
 // @access  Private/Admin
 const createProduct = async (req, res) => {
-  const { name, price, description, images, image, category, subCategory, countInStock, isBestSeller, isCODAllowed, isFeatured, video } = req.body;
+  const { name, price, discountPercentage, description, images, image, category, subCategory, countInStock, isBestSeller, isCODAllowed, isFeatured, video, sizes, colors, fabrics, works } = req.body;
 
   // If this product is being set as featured, unset all others
   if (isFeatured === true) {
@@ -121,6 +121,7 @@ const createProduct = async (req, res) => {
   const product = new Product({
     name,
     price,
+    discountPercentage: discountPercentage !== undefined ? discountPercentage : 0,
     user: req.user._id,
     images: images || (image ? [image] : []),
     image: image || (images && images.length > 0 ? images[0] : ''),
@@ -132,6 +133,10 @@ const createProduct = async (req, res) => {
     isCODAllowed: isCODAllowed !== undefined ? isCODAllowed : true,
     isFeatured: isFeatured !== undefined ? isFeatured : false,
     video: video || '',
+    sizes: sizes || [],
+    colors: colors || [],
+    fabrics: fabrics || [],
+    works: works || [],
   });
 
   const createdProduct = await product.save();
@@ -150,13 +155,16 @@ const createProduct = async (req, res) => {
 // @access  Private/Admin
 const updateProduct = async (req, res) => {
   try {
-    const { name, price, description, images, image, category, subCategory, countInStock, isBestSeller, isCODAllowed, isFeatured, video } = req.body;
+    const { name, price, discountPercentage, description, images, image, category, subCategory, countInStock, isBestSeller, isCODAllowed, isFeatured, video, sizes, colors, fabrics, works } = req.body;
 
     const product = await Product.findById(req.params.id);
 
     if (product) {
       product.name = name || product.name;
       product.price = price || product.price;
+      if (discountPercentage !== undefined) {
+        product.discountPercentage = discountPercentage;
+      }
       product.description = description || product.description;
       
       // Update images array and single image field
@@ -186,6 +194,19 @@ const updateProduct = async (req, res) => {
           await Product.updateMany({ _id: { $ne: product._id } }, { isFeatured: false });
         }
         product.isFeatured = isFeatured;
+      }
+
+      if (sizes !== undefined) {
+        product.sizes = sizes;
+      }
+      if (colors !== undefined) {
+        product.colors = colors;
+      }
+      if (fabrics !== undefined) {
+        product.fabrics = fabrics;
+      }
+      if (works !== undefined) {
+        product.works = works;
       }
 
       const updatedProduct = await product.save();

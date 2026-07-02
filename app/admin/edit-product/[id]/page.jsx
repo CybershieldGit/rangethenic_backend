@@ -9,6 +9,7 @@ import {
   uploadImage,
   uploadVideo,
   fetchCategories,
+  fetchAttributes,
 } from "@/utils/api";
 
 const LoadingSpinner = ({ size = "w-4 h-4", color = "border-white" }) => (
@@ -25,6 +26,7 @@ export default function EditProductPage({ params }) {
   const [formData, setFormData] = useState({
     name: "",
     price: 0,
+    discountPercentage: 0,
     description: "",
     images: "",
     category: "",
@@ -32,6 +34,10 @@ export default function EditProductPage({ params }) {
     countInStock: 0,
     isBestSeller: false,
     isCODAllowed: true,
+    sizes: [],
+    colors: [],
+    fabrics: [],
+    works: [],
   });
   const [loading, setLoading] = useState(true);
   const [submitLoading, setSubmitLoading] = useState(false);
@@ -50,7 +56,22 @@ export default function EditProductPage({ params }) {
   const [subDropdownOpen, setSubDropdownOpen] = useState(false);
   const subRef = useRef(null);
 
-  const selectedCategory = categories.find((c) => c.name === formData.category);
+  // Dropdown states & refs
+  const [sizeDropdownOpen, setSizeDropdownOpen] = useState(false);
+  const sizeRef = useRef(null);
+  const [colorDropdownOpen, setColorDropdownOpen] = useState(false);
+  const colorRef = useRef(null);
+  const [fabricDropdownOpen, setFabricDropdownOpen] = useState(false);
+  const fabricRef = useRef(null);
+  const [workDropdownOpen, setWorkDropdownOpen] = useState(false);
+  const workRef = useRef(null);
+
+  const [availableSizes, setAvailableSizes] = useState([]);
+  const [availableColors, setAvailableColors] = useState([]);
+  const [availableFabrics, setAvailableFabrics] = useState([]);
+  const [availableWorks, setAvailableWorks] = useState([]);
+
+  const selectedCategory = categories.find((c) => c.name.toLowerCase() === formData.category.toLowerCase());
   const subcategories = selectedCategory?.subcategories || [];
 
   // Close dropdowns on outside click
@@ -62,6 +83,18 @@ export default function EditProductPage({ params }) {
       if (subRef.current && !subRef.current.contains(e.target)) {
         setSubDropdownOpen(false);
       }
+      if (sizeRef.current && !sizeRef.current.contains(e.target)) {
+        setSizeDropdownOpen(false);
+      }
+      if (colorRef.current && !colorRef.current.contains(e.target)) {
+        setColorDropdownOpen(false);
+      }
+      if (fabricRef.current && !fabricRef.current.contains(e.target)) {
+        setFabricDropdownOpen(false);
+      }
+      if (workRef.current && !workRef.current.contains(e.target)) {
+        setWorkDropdownOpen(false);
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -71,17 +104,19 @@ export default function EditProductPage({ params }) {
     ? formData.images.split(",").map((u) => u.trim()).filter(Boolean)
     : [];
 
-  // Fetch product and categories on mount
+  // Fetch product, categories, and attributes on mount
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [product, cats] = await Promise.all([
+        const [product, cats, attrs] = await Promise.all([
           fetchProductById(id),
           fetchCategories(),
+          fetchAttributes(),
         ]);
         setFormData({
           name: product.name || "",
           price: product.price || 0,
+          discountPercentage: product.discountPercentage || 0,
           description: product.description || "",
           images: product.images ? product.images.join(", ") : (product.image || ""),
           category: product.category || "",
@@ -89,9 +124,19 @@ export default function EditProductPage({ params }) {
           countInStock: product.countInStock || 0,
           isBestSeller: product.isBestSeller || false,
           isCODAllowed: product.isCODAllowed !== undefined ? product.isCODAllowed : true,
+          sizes: product.sizes || [],
+          colors: product.colors || [],
+          fabrics: product.fabrics || [],
+          works: product.works || [],
         });
         setCategories(cats);
         setVideoUrl(product.video || "");
+
+        // Set available dynamic attribute options
+        setAvailableSizes(attrs.filter(a => a.type === "size").map(a => a.value));
+        setAvailableColors(attrs.filter(a => a.type === "color").map(a => a.value));
+        setAvailableFabrics(attrs.filter(a => a.type === "fabric").map(a => a.value));
+        setAvailableWorks(attrs.filter(a => a.type === "work").map(a => a.value));
       } catch (err) {
         console.error("Failed to load edit page data:", err);
         setSubmitError(err.message || "Failed to load product details");
@@ -165,14 +210,13 @@ export default function EditProductPage({ params }) {
 
   const handleFormChange = (e) => {
     const { name, value, type, checked } = e.target;
+    let finalVal = type === "checkbox" ? checked : (type === "number" ? Number(value) : value);
+    if (name === "discountPercentage" && type === "number") {
+      finalVal = Math.min(100, Math.max(0, finalVal));
+    }
     setFormData((prev) => ({
       ...prev,
-      [name]:
-        type === "checkbox"
-          ? checked
-          : type === "number"
-          ? Number(value)
-          : value,
+      [name]: finalVal,
     }));
   };
 
@@ -437,17 +481,234 @@ export default function EditProductPage({ params }) {
           </div>
         </div>
 
-        {/* === Section 2: Pricing & Stock === */}
+        {/* === Section 2: Filter === */}
+        <div className="bg-white rounded-2xl sm:rounded-[28px] border border-[#e8e1d9] p-4 sm:p-6 md:p-8 shadow-[0_8px_40px_rgba(0,0,0,0.03)]">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-7 h-7 rounded-full bg-[#b89b5e]/10 flex items-center justify-center">
+              <span className="text-[9px] font-black text-[#b89b5e]">02</span>
+            </div>
+            <h3 className="text-xs font-black uppercase tracking-widest text-[#2b2622]">Filter</h3>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+            {/* Size Filter Dropdown */}
+            <div ref={sizeRef}>
+              <div className="flex items-center justify-between py-2">
+                <span className="text-xs font-black uppercase tracking-widest text-[#6f6a65]">Size</span>
+                <span className="text-[10px] uppercase font-black text-[#b89b5e] bg-[#b89b5e]/10 px-2.5 py-1 rounded-full">{formData.sizes.length} selected</span>
+              </div>
+              <div className="relative mt-2">
+                <button
+                  type="button"
+                  onClick={() => setSizeDropdownOpen(!sizeDropdownOpen)}
+                  className="w-full p-3.5 rounded-2xl border border-[#e8e1d9] bg-[#fcfbf9] outline-none text-sm transition-all text-left font-semibold cursor-pointer flex items-center justify-between"
+                >
+                  <span className={formData.sizes.length > 0 ? "text-[#2b2622]" : "text-[#6f6a65]/30 italic"}>
+                    {formData.sizes.length > 0 ? formData.sizes.join(", ") : "Select Sizes..."}
+                  </span>
+                  <svg className="w-4 h-4 text-[#6f6a65]/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                  </svg>
+                </button>
+                {sizeDropdownOpen && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-[#e8e1d9] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.08)] z-50 overflow-hidden p-3 space-y-1.5 max-h-56 overflow-y-auto">
+                    {availableSizes.length === 0 ? (
+                      <div className="p-3 text-center text-[#6f6a65]/40 text-xs italic">No sizes created. Add sizes in the left sidebar.</div>
+                    ) : (
+                      availableSizes.map((sz) => {
+                        const selected = formData.sizes.includes(sz);
+                        return (
+                          <label key={sz} className="flex items-center gap-3 px-3 py-2 hover:bg-[#fcfbf9] rounded-xl cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={selected}
+                              onChange={() => {
+                                const newSizes = selected
+                                  ? formData.sizes.filter(s => s !== sz)
+                                  : [...formData.sizes, sz];
+                                setFormData(prev => ({ ...prev, sizes: newSizes }));
+                              }}
+                              className="w-4 h-4 rounded border-[#e8e1d9] text-[#b89b5e] focus:ring-[#b89b5e]"
+                            />
+                            <span className="text-xs font-semibold text-[#2b2622]">{sz}</span>
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Color Filter Dropdown */}
+            <div ref={colorRef}>
+              <div className="flex items-center justify-between py-2">
+                <span className="text-xs font-black uppercase tracking-widest text-[#6f6a65]">Color</span>
+                <span className="text-[10px] uppercase font-black text-[#b89b5e] bg-[#b89b5e]/10 px-2.5 py-1 rounded-full">{formData.colors.length} selected</span>
+              </div>
+              <div className="relative mt-2">
+                <button
+                  type="button"
+                  onClick={() => setColorDropdownOpen(!colorDropdownOpen)}
+                  className="w-full p-3.5 rounded-2xl border border-[#e8e1d9] bg-[#fcfbf9] outline-none text-sm transition-all text-left font-semibold cursor-pointer flex items-center justify-between"
+                >
+                  <span className={formData.colors.length > 0 ? "text-[#2b2622]" : "text-[#6f6a65]/30 italic"}>
+                    {formData.colors.length > 0 
+                      ? formData.colors.map(c => c.includes("|") ? c.split("|")[0] : c).join(", ") 
+                      : "Select Colors..."}
+                  </span>
+                  <svg className="w-4 h-4 text-[#6f6a65]/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                  </svg>
+                </button>
+                {colorDropdownOpen && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-[#e8e1d9] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.08)] z-50 overflow-hidden p-3 space-y-1.5 max-h-56 overflow-y-auto">
+                    {availableColors.length === 0 ? (
+                      <div className="p-3 text-center text-[#6f6a65]/40 text-xs italic">No colors created. Add colors in the left sidebar.</div>
+                    ) : (
+                      availableColors.map((col) => {
+                        const hasPipe = col.includes("|");
+                        const name = hasPipe ? col.split("|")[0] : col;
+                        const hex = hasPipe ? col.split("|")[1] : "#CCCCCC";
+                        const selected = formData.colors.includes(col);
+                        return (
+                          <label key={col} className="flex items-center gap-3 px-3 py-2 hover:bg-[#fcfbf9] rounded-xl cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={selected}
+                              onChange={() => {
+                                const newCols = selected
+                                  ? formData.colors.filter(c => c !== col)
+                                  : [...formData.colors, col];
+                                setFormData(prev => ({ ...prev, colors: newCols }));
+                              }}
+                              className="w-4 h-4 rounded border-[#e8e1d9] text-[#b89b5e] focus:ring-[#b89b5e]"
+                            />
+                            <div 
+                              className="w-4 h-4 rounded-full border border-stone-200 shadow-sm shrink-0" 
+                              style={{ backgroundColor: hex }}
+                            />
+                            <span className="text-xs font-semibold text-[#2b2622]">{name}</span>
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Fabric Filter Dropdown */}
+            <div ref={fabricRef}>
+              <div className="flex items-center justify-between py-2">
+                <span className="text-xs font-black uppercase tracking-widest text-[#6f6a65]">Fabric</span>
+                <span className="text-[10px] uppercase font-black text-[#b89b5e] bg-[#b89b5e]/10 px-2.5 py-1 rounded-full">{formData.fabrics.length} selected</span>
+              </div>
+              <div className="relative mt-2">
+                <button
+                  type="button"
+                  onClick={() => setFabricDropdownOpen(!fabricDropdownOpen)}
+                  className="w-full p-3.5 rounded-2xl border border-[#e8e1d9] bg-[#fcfbf9] outline-none text-sm transition-all text-left font-semibold cursor-pointer flex items-center justify-between"
+                >
+                  <span className={formData.fabrics.length > 0 ? "text-[#2b2622]" : "text-[#6f6a65]/30 italic"}>
+                    {formData.fabrics.length > 0 ? formData.fabrics.join(", ") : "Select Fabrics..."}
+                  </span>
+                  <svg className="w-4 h-4 text-[#6f6a65]/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                  </svg>
+                </button>
+                {fabricDropdownOpen && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-[#e8e1d9] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.08)] z-50 overflow-hidden p-3 space-y-1.5 max-h-56 overflow-y-auto">
+                    {availableFabrics.length === 0 ? (
+                      <div className="p-3 text-center text-[#6f6a65]/40 text-xs italic">No fabrics created. Add fabrics in the left sidebar.</div>
+                    ) : (
+                      availableFabrics.map((fab) => {
+                        const selected = formData.fabrics.includes(fab);
+                        return (
+                          <label key={fab} className="flex items-center gap-3 px-3 py-2 hover:bg-[#fcfbf9] rounded-xl cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={selected}
+                              onChange={() => {
+                                const newFabs = selected
+                                  ? formData.fabrics.filter(f => f !== fab)
+                                  : [...formData.fabrics, fab];
+                                setFormData(prev => ({ ...prev, fabrics: newFabs }));
+                              }}
+                              className="w-4 h-4 rounded border-[#e8e1d9] text-[#b89b5e] focus:ring-[#b89b5e]"
+                            />
+                            <span className="text-xs font-semibold text-[#2b2622]">{fab}</span>
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Work Filter Dropdown */}
+            <div ref={workRef}>
+              <div className="flex items-center justify-between py-2">
+                <span className="text-xs font-black uppercase tracking-widest text-[#6f6a65]">Work</span>
+                <span className="text-[10px] uppercase font-black text-[#b89b5e] bg-[#b89b5e]/10 px-2.5 py-1 rounded-full">{formData.works.length} selected</span>
+              </div>
+              <div className="relative mt-2">
+                <button
+                  type="button"
+                  onClick={() => setWorkDropdownOpen(!workDropdownOpen)}
+                  className="w-full p-3.5 rounded-2xl border border-[#e8e1d9] bg-[#fcfbf9] outline-none text-sm transition-all text-left font-semibold cursor-pointer flex items-center justify-between"
+                >
+                  <span className={formData.works.length > 0 ? "text-[#2b2622]" : "text-[#6f6a65]/30 italic"}>
+                    {formData.works.length > 0 ? formData.works.join(", ") : "Select Works..."}
+                  </span>
+                  <svg className="w-4 h-4 text-[#6f6a65]/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                  </svg>
+                </button>
+                {workDropdownOpen && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-[#e8e1d9] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.08)] z-50 overflow-hidden p-3 space-y-1.5 max-h-56 overflow-y-auto">
+                    {availableWorks.length === 0 ? (
+                      <div className="p-3 text-center text-[#6f6a65]/40 text-xs italic">No works created. Add works in the left sidebar.</div>
+                    ) : (
+                      availableWorks.map((wk) => {
+                        const selected = formData.works.includes(wk);
+                        return (
+                          <label key={wk} className="flex items-center gap-3 px-3 py-2 hover:bg-[#fcfbf9] rounded-xl cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={selected}
+                              onChange={() => {
+                                const newWorks = selected
+                                  ? formData.works.filter(w => w !== wk)
+                                  : [...formData.works, wk];
+                                setFormData(prev => ({ ...prev, works: newWorks }));
+                              }}
+                              className="w-4 h-4 rounded border-[#e8e1d9] text-[#b89b5e] focus:ring-[#b89b5e]"
+                            />
+                            <span className="text-xs font-semibold text-[#2b2622]">{wk}</span>
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* === Section 3: Pricing & Stock === */}
         <div className="bg-white rounded-2xl sm:rounded-[28px] border border-[#e8e1d9] p-4 sm:p-6 md:p-8 shadow-[0_8px_40px_rgba(0,0,0,0.03)]">
           <div className="flex items-center gap-3 mb-5">
             <div className="w-7 h-7 rounded-full bg-[#b89b5e]/10 flex items-center justify-center">
-              <span className="text-[9px] font-black text-[#b89b5e]">02</span>
+              <span className="text-[9px] font-black text-[#b89b5e]">03</span>
             </div>
             <h3 className="text-xs font-black uppercase tracking-widest text-[#2b2622]">
               Pricing & Inventory
             </h3>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-[9px] uppercase font-black tracking-widest text-[#6f6a65] mb-2 ml-1">
                 Price (₹)
@@ -465,6 +726,27 @@ export default function EditProductPage({ params }) {
                   min="0"
                   step="0.01"
                   className="w-full p-3.5 pl-9 rounded-2xl border border-[#e8e1d9] bg-[#fcfbf9] focus:ring-2 focus:ring-[#b89b5e]/20 focus:border-[#b89b5e] outline-none text-sm transition-all text-[#2b2622] font-semibold"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-[9px] uppercase font-black tracking-widest text-[#6f6a65] mb-2 ml-1">
+                Discount (%)
+              </label>
+              <div className="relative">
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[#b89b5e] font-bold text-sm">
+                  %
+                </span>
+                <input
+                  type="number"
+                  name="discountPercentage"
+                  value={formData.discountPercentage}
+                  onChange={handleFormChange}
+                  required
+                  min="0"
+                  max="100"
+                  step="1"
+                  className="w-full p-3.5 pr-9 rounded-2xl border border-[#e8e1d9] bg-[#fcfbf9] focus:ring-2 focus:ring-[#b89b5e]/20 focus:border-[#b89b5e] outline-none text-sm transition-all text-[#2b2622] font-semibold"
                 />
               </div>
             </div>
@@ -529,11 +811,11 @@ export default function EditProductPage({ params }) {
           </div>
         </div>
 
-        {/* === Section 3: Media & Description === */}
+        {/* === Section 4: Media & Description === */}
         <div className="bg-white rounded-2xl sm:rounded-[28px] border border-[#e8e1d9] p-4 sm:p-6 md:p-8 shadow-[0_8px_40px_rgba(0,0,0,0.03)]">
           <div className="flex items-center gap-3 mb-5">
             <div className="w-7 h-7 rounded-full bg-[#b89b5e]/10 flex items-center justify-center">
-              <span className="text-[9px] font-black text-[#b89b5e]">03</span>
+              <span className="text-[9px] font-black text-[#b89b5e]">04</span>
             </div>
             <h3 className="text-xs font-black uppercase tracking-widest text-[#2b2622]">
               Media & Description
