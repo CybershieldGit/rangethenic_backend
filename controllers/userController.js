@@ -141,5 +141,32 @@ const removeFromWishlist = async (req, res, next) => {
   }
 };
 
-export { getUserProfile, updateUserProfile, getUserWishlist, addToWishlist, removeFromWishlist };
+// @desc    Clear the entire wishlist
+// @route   DELETE /api/users/wishlist
+// @access  Private
+const clearWishlist = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user._id);
+
+    if (user) {
+      user.wishlist = [];
+      await user.save();
+      res.json([]);
+    } else {
+      res.status(404);
+      throw new Error('User not found');
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
+export {
+  getUserProfile,
+  updateUserProfile,
+  getUserWishlist,
+  addToWishlist,
+  removeFromWishlist,
+  clearWishlist,
+};
 

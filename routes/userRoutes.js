@@ -5,6 +5,7 @@ import {
   getUserWishlist,
   addToWishlist,
   removeFromWishlist,
+  clearWishlist,
 } from '../controllers/userController.js';
 import { protect } from '../middleware/authMiddleware.js';
 
@@ -18,7 +19,8 @@ router
 router
   .route('/wishlist')
   .get(protect, getUserWishlist)
-  .post(protect, addToWishlist);
+  .post(protect, addToWishlist)
+  .delete(protect, clearWishlist);
 
 router
   .route('/wishlist/:productId')
