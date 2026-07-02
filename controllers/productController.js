@@ -111,7 +111,7 @@ const getFeaturedProduct = async (req, res) => {
 // @route   POST /api/products
 // @access  Private/Admin
 const createProduct = async (req, res) => {
-  const { name, price, description, images, image, category, countInStock, isBestSeller, isCODAllowed, isFeatured, video } = req.body;
+  const { name, price, description, images, image, category, subCategory, countInStock, isBestSeller, isCODAllowed, isFeatured, video } = req.body;
 
   // If this product is being set as featured, unset all others
   if (isFeatured === true) {
@@ -125,6 +125,7 @@ const createProduct = async (req, res) => {
     images: images || (image ? [image] : []),
     image: image || (images && images.length > 0 ? images[0] : ''),
     category,
+    subCategory: subCategory || '',
     countInStock,
     description,
     isBestSeller: isBestSeller !== undefined ? isBestSeller : false,
@@ -149,7 +150,7 @@ const createProduct = async (req, res) => {
 // @access  Private/Admin
 const updateProduct = async (req, res) => {
   try {
-    const { name, price, description, images, image, category, countInStock, isBestSeller, isCODAllowed, isFeatured, video } = req.body;
+    const { name, price, description, images, image, category, subCategory, countInStock, isBestSeller, isCODAllowed, isFeatured, video } = req.body;
 
     const product = await Product.findById(req.params.id);
 
@@ -168,6 +169,9 @@ const updateProduct = async (req, res) => {
       }
 
       product.category = category || product.category;
+      if (subCategory !== undefined) {
+        product.subCategory = subCategory;
+      }
       product.countInStock = countInStock !== undefined ? countInStock : product.countInStock;
       product.isBestSeller = isBestSeller !== undefined ? isBestSeller : product.isBestSeller;
       product.isCODAllowed = isCODAllowed !== undefined ? isCODAllowed : product.isCODAllowed;

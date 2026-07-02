@@ -334,20 +334,40 @@ export const uploadVideo = async (fileFormData) => {
 
 // --- CATEGORIES API ---
 
-export const fetchCategories = async () => {
+// Distinct categories aggregated from products (name, count, image) — used for storefront-style views
+export const fetchProductCategories = async () => {
   return apiFetch("/api/products/categories");
 };
 
-export const createCategory = async (name) => {
+// Full category documents from the Category collection (includes subcategories)
+export const fetchCategories = async () => {
+  return apiFetch("/api/categories");
+};
+
+export const createCategory = async (name, subcategories = []) => {
   return apiFetch("/api/categories", {
     method: "POST",
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ name, subcategories }),
   });
 };
 
 export const deleteCategory = async (id) => {
   return apiFetch(`/api/categories/${id}`, {
     method: "DELETE",
+  });
+};
+
+export const addSubcategory = async (categoryId, name) => {
+  return apiFetch(`/api/categories/${categoryId}/subcategories`, {
+    method: "POST",
+    body: JSON.stringify({ name }),
+  });
+};
+
+export const deleteSubcategory = async (categoryId, name) => {
+  return apiFetch(`/api/categories/${categoryId}/subcategories`, {
+    method: "DELETE",
+    body: JSON.stringify({ name }),
   });
 };
 
