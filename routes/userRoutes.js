@@ -2,6 +2,10 @@ import express from 'express';
 import {
   getUserProfile,
   updateUserProfile,
+  getUserAddresses,
+  addUserAddress,
+  updateUserAddress,
+  deleteUserAddress,
   getUserWishlist,
   addToWishlist,
   removeFromWishlist,
@@ -15,6 +19,16 @@ router
   .route('/profile')
   .get(protect, getUserProfile)
   .put(protect, updateUserProfile);
+
+router
+  .route('/addresses')
+  .get(protect, getUserAddresses)
+  .post(protect, addUserAddress);
+
+router
+  .route('/addresses/:addressId')
+  .put(protect, updateUserAddress)
+  .delete(protect, deleteUserAddress);
 
 router
   .route('/wishlist')
