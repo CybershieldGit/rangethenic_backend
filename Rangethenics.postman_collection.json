@@ -1,8 +1,8 @@
 {
   "info": {
     "_postman_id": "8c8eb2c1-d4a1-432d-8b06-4bfa1e9ad369",
-    "name": "RakaRituals API",
-    "description": "Comprehensive Postman collection for testing the RakaRituals backend application.",
+    "name": "Rangethenics API",
+    "description": "Comprehensive Postman collection for testing the Rangethenics backend application.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -273,7 +273,7 @@
             },
             "method": "GET",
             "url": {
-              "raw": "{{baseUrl}}/api/products?keyword=ritual&pageNumber=1",
+              "raw": "{{baseUrl}}/api/products?keyword=hoodie&pageNumber=1",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -284,7 +284,7 @@
               "query": [
                 {
                   "key": "keyword",
-                  "value": "ritual"
+                  "value": "hoodie"
                 },
                 {
                   "key": "pageNumber",
@@ -397,7 +397,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"rating\": 5,\n  \"comment\": \"Amazing ritual product, highly recommend!\"\n}"
+              "raw": "{\n  \"rating\": 5,\n  \"comment\": \"Amazing product, highly recommend!\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/products/:id/reviews",
@@ -432,7 +432,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Raka Special Ritual\",\n  \"price\": 49.99,\n  \"description\": \"Premium ritual experience.\",\n  \"image\": \"/images/sample.jpg\",\n  \"category\": \"Rituals\",\n  \"countInStock\": 10,\n  \"isBestSeller\": true\n}"
+              "raw": "{\n  \"name\": \"Rangethenics Premium Hoodie\",\n  \"price\": 49.99,\n  \"description\": \"Premium athletic/fitness wear.\",\n  \"image\": \"/images/sample.jpg\",\n  \"category\": \"Rituals\",\n  \"countInStock\": 10,\n  \"isBestSeller\": true\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/products",
@@ -459,7 +459,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Raka Special Ritual Updated\",\n  \"price\": 59.99,\n  \"description\": \"Updated premium ritual experience.\",\n  \"image\": \"/images/sample.jpg\",\n  \"category\": \"Rituals\",\n  \"countInStock\": 15,\n  \"isBestSeller\": true\n}"
+              "raw": "{\n  \"name\": \"Rangethenics Premium Hoodie Updated\",\n  \"price\": 59.99,\n  \"description\": \"Updated premium athletic/fitness wear.\",\n  \"image\": \"/images/sample.jpg\",\n  \"category\": \"Rituals\",\n  \"countInStock\": 15,\n  \"isBestSeller\": true\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/products/:id",
@@ -629,7 +629,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"shippingAddress\": {\n    \"fullName\": \"Jane Doe\",\n    \"phone\": \"+919876543210\",\n    \"addressLine\": \"Flat 405, Lotus Apartments\",\n    \"city\": \"Mumbai\",\n    \"state\": \"Maharashtra\",\n    \"postalCode\": \"400001\",\n    \"country\": \"India\"\n  },\n  \"referralCode\": \"RAKA_VIP_777\",\n  \"referral\": \"Friend Recommend\"\n}"
+              "raw": "{\n  \"shippingAddress\": {\n    \"fullName\": \"Jane Doe\",\n    \"phone\": \"+919876543210\",\n    \"addressLine\": \"Flat 405, Lotus Apartments\",\n    \"city\": \"Mumbai\",\n    \"state\": \"Maharashtra\",\n    \"postalCode\": \"400001\",\n    \"country\": \"India\"\n  },\n  \"referralCode\": \"RANGA_VIP_777\",\n  \"referral\": \"Friend Recommend\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/orders",
@@ -835,7 +835,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Accessories\",\n  \"description\": \"Ritual bells, mats and bowls\"\n}"
+              "raw": "{\n  \"name\": \"Accessories\",\n  \"description\": \"Handcrafted jewelry and accessories\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/categories",

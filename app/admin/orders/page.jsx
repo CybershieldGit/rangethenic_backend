@@ -517,7 +517,7 @@ export default function AdminOrdersPage() {
                   <tr className="bg-[#fcfbf9] border-b border-[#f2eee9] text-[#6f6a65] text-[10px] font-black uppercase tracking-wider">
                     <th className="py-5 px-6">Client / Order ID</th>
                     <th className="py-5 px-6">Delivery Address</th>
-                    <th className="py-5 px-6">Ritual Items</th>
+                    <th className="py-5 px-6">Products</th>
                     <th className="py-5 px-6">Total / Payment</th>
                     <th className="py-5 px-6">Coupon</th>
                     <th className="py-5 px-6">Shipping / AWB</th>

@@ -415,8 +415,8 @@ const buildPublicTrackingPayload = (parsed, extras = {}) => ({
   history: parsed.history || [],
 });
 
-// @desc    Public tracking lookup by RAKA order ID or AWB (no login required)
-// @route   GET /api/shipping/track-public?order_id=RAKAA-xxx&awb=xxx
+// @desc    Public tracking lookup by RANGETHENICS order ID or AWB (no login required)
+// @route   GET /api/shipping/track-public?order_id=RANGA-xxx&awb=xxx
 // @access  Public
 export const publicTrackHandler = async (req, res) => {
   try {
@@ -502,7 +502,7 @@ export const publicTrackHandler = async (req, res) => {
   }
 };
 
-// @desc    Get live tracking for a Raka order (uses AWB, or shipment ID as fallback)
+// @desc    Get live tracking for a Rangethenics order (uses AWB, or shipment ID as fallback)
 // @route   GET /api/shipping/orders/:id/track
 // @access  Private
 export const getOrderTracking = async (req, res) => {

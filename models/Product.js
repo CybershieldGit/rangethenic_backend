@@ -42,7 +42,11 @@ const productSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    description: {
+    shortDescription: {
+      type: String,
+      required: true,
+    },
+    longDescription: {
       type: String,
       required: true,
     },
@@ -123,6 +127,14 @@ const productSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    metals: {
+      type: [String],
+      default: [],
+    },
+    jewelColors: {
+      type: [String],
+      default: [],
+    },
     reviews: [reviewSchema],
     rating: {
       type: Number,
@@ -147,10 +159,11 @@ productSchema.pre('save', function (next) {
   } else if (this.image && (!this.images || this.images.length === 0)) {
     this.images = [this.image];
   }
+
   next();
 });
 
-productSchema.index({ name: 'text', description: 'text', category: 'text' });
+productSchema.index({ name: 'text', shortDescription: 'text', longDescription: 'text', category: 'text' });
 productSchema.index({ isBestSeller: 1 });
 productSchema.index({ isFeatured: 1 });
 

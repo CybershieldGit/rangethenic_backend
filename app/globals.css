@@ -3,11 +3,13 @@
 @tailwind utilities;
 
 :root {
-  --bg-primary: #f7f6f1;
-  --bg-card: #e8e1d9;
-  --text-heading: #2b2622;
-  --text-body: #6f6a65;
-  --accent: #b89b5e;
+  --bg-primary: #fffaf3;
+  --bg-card: #fcf5eb;
+  --text-heading: #420001;
+  --text-body: #4a3f38;
+  --accent: #c5a059;
+  --accent-hover: #2e0001;
+  --sidebar-bg: #f5f1e6;
   
   /* Premium Depth System */
   --shadow-premium: 0 10px 30px rgba(0, 0, 0, 0.05);
@@ -28,14 +30,7 @@
     scroll-behavior: smooth;
   }
 
-  /* Structural Consistency */
-  .ritual-container {
-    @apply max-w-6xl mx-auto px-6 w-full;
-  }
 
-  .ritual-section {
-    @apply py-20;
-  }
 
   /* Offset for fixed announcement bar + navbar */
   .page-main {
@@ -163,22 +158,7 @@ html {
   box-shadow: 0 -20px 40px rgba(0, 0, 0, 0.02);
 }
 
-/* === RITUAL CARD SYSTEM === */
-.ritual-card {
-  background-color: var(--bg-card);
-  border-radius: 0.75rem; /* rounded-xl */
-  box-shadow: var(--shadow-premium);
-  transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
-  overflow: hidden;
-  position: relative;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-}
 
-.ritual-card:hover {
-  transform: translateY(-8px);
-  box-shadow: var(--shadow-hover);
-  border-color: var(--accent);
-}
 
 .product-card {
   background-color: var(--bg-card);
@@ -259,6 +239,59 @@ html {
   scrollbar-width: none;  /* Firefox */
 }
 
+/* === DYNAMIC CLASS OVERRIDES TO FORCE FRONTEND COLOR THEME ON ALL VIEWPORTS === */
+.bg-\[\#f7f6f1\], 
+.bg-\[\#fdfaf5\], 
+.bg-\[\#fdfcfb\], 
+.bg-\[\#f8f7f4\], 
+.bg-\[\#f8f5f2\], 
+.bg-\[\#fcfbf9\] {
+  background-color: var(--bg-primary) !important;
+}
+
+.bg-\[\#e8e1d9\] {
+  background-color: var(--sidebar-bg) !important;
+}
+
+.bg-\[\#e8e1d9\]\/60 {
+  background-color: rgba(245, 241, 230, 0.6) !important;
+}
+
+.bg-\[\#2b2622\] {
+  background-color: var(--text-heading) !important;
+}
+
+.text-\[\#2b2622\] {
+  color: var(--text-heading) !important;
+}
+
+.text-\[\#6f6a65\] {
+  color: var(--text-body) !important;
+}
+
+.text-\[\#b89b5e\],
+.group\/wishlist:hover .text-\[\#6f6a65\],
+.text-\[var\(--accent\)\] {
+  color: var(--accent) !important;
+}
+
+.bg-\[\#b89b5e\],
+.bg-\[var\(--accent\)\] {
+  background-color: var(--accent) !important;
+}
+
+.border-\[\#b89b5e\],
+.border-\[var\(--accent\)\] {
+  border-color: var(--accent) !important;
+}
+
+.border-\[\#dcd4cb\],
+.border-\[\#e8e4de\],
+.border-\[\#2b2622\]\/5,
+.border-\[\#2b2622\]\/10 {
+  border-color: #e9e9e9 !important;
+}
+
 /* === MOBILE-ONLY realignments (coralandsky.in style) === */
 @media (max-width: 1023px) {
   :root {
@@ -281,14 +314,14 @@ html {
   }
   
   /* Reset Card Styles */
-  .ritual-card, .product-card {
+  .product-card {
     background-color: #ffffff !important;
     border-radius: 4px !important;
     border: 1px solid #e9e9e9 !important;
     box-shadow: none !important;
   }
   
-  .ritual-card:hover, .product-card:hover {
+  .product-card:hover {
     transform: none !important;
     box-shadow: none !important;
     border-color: #FB9E5B !important;
@@ -332,51 +365,6 @@ html {
     color: #615959 !important;
   }
 
-  /* Dynamic class overrides to force coralandsky.in theme on mobile */
-  .bg-\[\#f7f6f1\], 
-  .bg-\[\#fdfaf5\], 
-  .bg-\[\#fdfcfb\], 
-  .bg-\[\#f8f7f4\], 
-  .bg-\[\#f8f5f2\], 
-  .bg-\[\#fcfbf9\] {
-    background-color: var(--bg-primary) !important;
-  }
-  
-  .bg-\[\#2b2622\] {
-    background-color: var(--text-heading) !important;
-  }
-  
-  .text-\[\#2b2622\] {
-    color: var(--text-heading) !important;
-  }
-  
-  .text-\[\#6f6a65\] {
-    color: var(--text-body) !important;
-  }
-  
-  .text-\[\#b89b5e\],
-  .group\/wishlist:hover .text-\[\#6f6a65\],
-  .text-\[var\(--accent\)\] {
-    color: var(--accent) !important;
-  }
-  
-  .bg-\[\#b89b5e\],
-  .bg-\[var\(--accent\)\] {
-    background-color: var(--accent) !important;
-  }
-  
-  .border-\[\#b89b5e\],
-  .border-\[var\(--accent\)\] {
-    border-color: var(--accent) !important;
-  }
-  
-  .border-\[\#dcd4cb\],
-  .border-\[\#e8e4de\],
-  .border-\[\#2b2622\]\/5,
-  .border-\[\#2b2622\]\/10 {
-    border-color: #e9e9e9 !important;
-  }
-  
   /* Reset and flatten border radius on mobile for all e-commerce widgets/containers */
   .rounded-\[32px\], 
   .rounded-\[24px\], 
@@ -464,10 +452,24 @@ html {
   color: rgba(255, 255, 255, 0.95) !important;
 }
 
-/* Admin Panel Custom Theme (Noto Serif Font override) */
+/* Admin Panel Custom Theme Font Alignment */
 .admin-theme,
-.admin-theme * {
-  font-family: var(--font-noto-serif), serif !important;
+.admin-theme input,
+.admin-theme textarea,
+.admin-theme select,
+.admin-theme button,
+.admin-theme table,
+.admin-theme p,
+.admin-theme span {
+  font-family: var(--font-inter), "Inter", system-ui, sans-serif !important;
+}
+
+.admin-theme h1,
+.admin-theme h2,
+.admin-theme h3,
+.admin-theme h4,
+.admin-theme h5 {
+  font-family: var(--font-heading), "Playfair Display", Georgia, serif !important;
 }
 
 /* Search slide down animation */
@@ -501,4 +503,14 @@ html {
 
 .animate-marquee:hover {
   animation-play-state: paused;
+}
+
+/* Remove border radius globally for a sharp modern boxy look */
+* {
+  border-radius: 0px !important;
+}
+/* Retain border radius for fully circular elements (dots, swatches) */
+.rounded-full,
+[class*="rounded-full"] {
+  border-radius: 9999px !important;
 }

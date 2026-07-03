@@ -5,7 +5,7 @@ const attributeSchema = new mongoose.Schema(
     type: {
       type: String,
       required: true,
-      enum: ['size', 'color', 'fabric', 'work'],
+      enum: ['size', 'color', 'fabric', 'work', 'metal', 'jewel_color'],
     },
     value: {
       type: String,

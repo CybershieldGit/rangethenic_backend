@@ -27,7 +27,8 @@ export default function EditProductPage({ params }) {
     name: "",
     price: 0,
     discountPercentage: 0,
-    description: "",
+    shortDescription: "",
+    longDescription: "",
     images: "",
     category: "",
     subCategory: "",
@@ -38,6 +39,8 @@ export default function EditProductPage({ params }) {
     colors: [],
     fabrics: [],
     works: [],
+    metals: [],
+    jewelColors: [],
   });
   const [loading, setLoading] = useState(true);
   const [submitLoading, setSubmitLoading] = useState(false);
@@ -65,11 +68,17 @@ export default function EditProductPage({ params }) {
   const fabricRef = useRef(null);
   const [workDropdownOpen, setWorkDropdownOpen] = useState(false);
   const workRef = useRef(null);
+  const [metalDropdownOpen, setMetalDropdownOpen] = useState(false);
+  const metalRef = useRef(null);
+  const [jewelColorDropdownOpen, setJewelColorDropdownOpen] = useState(false);
+  const jewelColorRef = useRef(null);
 
   const [availableSizes, setAvailableSizes] = useState([]);
   const [availableColors, setAvailableColors] = useState([]);
   const [availableFabrics, setAvailableFabrics] = useState([]);
   const [availableWorks, setAvailableWorks] = useState([]);
+  const [availableMetals, setAvailableMetals] = useState([]);
+  const [availableJewelColors, setAvailableJewelColors] = useState([]);
 
   const selectedCategory = categories.find((c) => c.name.toLowerCase() === formData.category.toLowerCase());
   const subcategories = selectedCategory?.subcategories || [];
@@ -95,6 +104,12 @@ export default function EditProductPage({ params }) {
       if (workRef.current && !workRef.current.contains(e.target)) {
         setWorkDropdownOpen(false);
       }
+      if (metalRef.current && !metalRef.current.contains(e.target)) {
+        setMetalDropdownOpen(false);
+      }
+      if (jewelColorRef.current && !jewelColorRef.current.contains(e.target)) {
+        setJewelColorDropdownOpen(false);
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -117,7 +132,8 @@ export default function EditProductPage({ params }) {
           name: product.name || "",
           price: product.price || 0,
           discountPercentage: product.discountPercentage || 0,
-          description: product.description || "",
+          shortDescription: product.shortDescription || "",
+          longDescription: product.longDescription || "",
           images: product.images ? product.images.join(", ") : (product.image || ""),
           category: product.category || "",
           subCategory: product.subCategory || "",
@@ -128,6 +144,8 @@ export default function EditProductPage({ params }) {
           colors: product.colors || [],
           fabrics: product.fabrics || [],
           works: product.works || [],
+          metals: product.metals || [],
+          jewelColors: product.jewelColors || [],
         });
         setCategories(cats);
         setVideoUrl(product.video || "");
@@ -137,6 +155,8 @@ export default function EditProductPage({ params }) {
         setAvailableColors(attrs.filter(a => a.type === "color").map(a => a.value));
         setAvailableFabrics(attrs.filter(a => a.type === "fabric").map(a => a.value));
         setAvailableWorks(attrs.filter(a => a.type === "work").map(a => a.value));
+        setAvailableMetals(attrs.filter(a => a.type === "metal").map(a => a.value));
+        setAvailableJewelColors(attrs.filter(a => a.type === "jewel_color").map(a => a.value));
       } catch (err) {
         console.error("Failed to load edit page data:", err);
         setSubmitError(err.message || "Failed to load product details");
@@ -232,11 +252,18 @@ export default function EditProductPage({ params }) {
       if (imageUrls.length === 0)
         throw new Error("At least one product image is required.");
       
+      const isJewellery = formData.category?.toLowerCase() === "jewellery";
       await updateProduct(id, {
         ...formData,
         images: imageUrls,
         image: imageUrls[0],
         video: videoUrl,
+        sizes: isJewellery ? [] : formData.sizes,
+        colors: isJewellery ? [] : formData.colors,
+        fabrics: isJewellery ? [] : formData.fabrics,
+        works: isJewellery ? [] : formData.works,
+        metals: isJewellery ? formData.metals : [],
+        jewelColors: isJewellery ? formData.jewelColors : [],
       });
       
       showNotification(`${formData.name} successfully updated.`);
@@ -278,13 +305,13 @@ export default function EditProductPage({ params }) {
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-10 mb-20 px-4 sm:px-0">
         <div>
           <span className="text-[#b89b5e] font-black tracking-[0.5em] uppercase text-[10px] block mb-4">
-            — Modify Offering —
+            — Edit Product —
           </span>
           <h1 className="text-7xl font-bold tracking-tighter text-[#2b2622] leading-none mb-4">
-            Edit Ritual
+            Edit Product
           </h1>
           <p className="text-[#6f6a65] text-sm max-w-lg leading-relaxed opacity-60 italic">
-            Update the details, pricing, stock, or media of this sacred offering.
+            Update the details, pricing, stock, or media of this product.
           </p>
         </div>
         <Link
@@ -314,7 +341,7 @@ export default function EditProductPage({ params }) {
           <div className="space-y-4">
             <div>
               <label className="block text-[9px] uppercase font-black tracking-widest text-[#6f6a65] mb-2 ml-1">
-                Ritual Name
+                Product Name
               </label>
               <input
                 type="text"
@@ -375,10 +402,17 @@ export default function EditProductPage({ params }) {
                         key={catName}
                         type="button"
                         onClick={() => {
+                          const isJewellery = catName.toLowerCase() === "jewellery";
                           setFormData((prev) => ({
                             ...prev,
                             category: catName,
                             subCategory: "",
+                            fabrics: isJewellery ? [] : prev.fabrics,
+                            works: isJewellery ? [] : prev.works,
+                            sizes: isJewellery ? [] : prev.sizes,
+                            colors: isJewellery ? [] : prev.colors,
+                            metals: isJewellery ? prev.metals : [],
+                            jewelColors: isJewellery ? prev.jewelColors : [],
                           }));
                           setCategoryDropdownOpen(false);
                         }}
@@ -492,209 +526,328 @@ export default function EditProductPage({ params }) {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
             {/* Size Filter Dropdown */}
-            <div ref={sizeRef}>
-              <div className="flex items-center justify-between py-2">
-                <span className="text-xs font-black uppercase tracking-widest text-[#6f6a65]">Size</span>
-                <span className="text-[10px] uppercase font-black text-[#b89b5e] bg-[#b89b5e]/10 px-2.5 py-1 rounded-full">{formData.sizes.length} selected</span>
+            {formData.category?.toLowerCase() !== "jewellery" && (
+              <div ref={sizeRef}>
+                <div className="flex items-center justify-between py-2">
+                  <span className="text-xs font-black uppercase tracking-widest text-[#6f6a65]">Size</span>
+                  <span className="text-[10px] uppercase font-black text-[#b89b5e] bg-[#b89b5e]/10 px-2.5 py-1 rounded-full">{formData.sizes.length} selected</span>
+                </div>
+                <div className="relative mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setSizeDropdownOpen(!sizeDropdownOpen)}
+                    className="w-full p-3.5 rounded-2xl border border-[#e8e1d9] bg-[#fcfbf9] outline-none text-sm transition-all text-left font-semibold cursor-pointer flex items-center justify-between"
+                  >
+                    <span className={formData.sizes.length > 0 ? "text-[#2b2622]" : "text-[#6f6a65]/30 italic"}>
+                      {formData.sizes.length > 0 ? formData.sizes.join(", ") : "Select Sizes..."}
+                    </span>
+                    <svg className="w-4 h-4 text-[#6f6a65]/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                    </svg>
+                  </button>
+                  {sizeDropdownOpen && (
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-[#e8e1d9] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.08)] z-50 overflow-hidden p-3 space-y-1.5 max-h-56 overflow-y-auto">
+                      {availableSizes.length === 0 ? (
+                        <div className="p-3 text-center text-[#6f6a65]/40 text-xs italic">No sizes created. Add sizes in the left sidebar.</div>
+                      ) : (
+                        availableSizes.map((sz) => {
+                          const selected = formData.sizes.includes(sz);
+                          return (
+                            <label key={sz} className="flex items-center gap-3 px-3 py-2 hover:bg-[#fcfbf9] rounded-xl cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={selected}
+                                onChange={() => {
+                                  const newSizes = selected
+                                    ? formData.sizes.filter(s => s !== sz)
+                                    : [...formData.sizes, sz];
+                                  setFormData(prev => ({ ...prev, sizes: newSizes }));
+                                }}
+                                className="w-4 h-4 rounded border-[#e8e1d9] text-[#b89b5e] focus:ring-[#b89b5e]"
+                              />
+                              <span className="text-xs font-semibold text-[#2b2622]">{sz}</span>
+                            </label>
+                          );
+                        })
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="relative mt-2">
-                <button
-                  type="button"
-                  onClick={() => setSizeDropdownOpen(!sizeDropdownOpen)}
-                  className="w-full p-3.5 rounded-2xl border border-[#e8e1d9] bg-[#fcfbf9] outline-none text-sm transition-all text-left font-semibold cursor-pointer flex items-center justify-between"
-                >
-                  <span className={formData.sizes.length > 0 ? "text-[#2b2622]" : "text-[#6f6a65]/30 italic"}>
-                    {formData.sizes.length > 0 ? formData.sizes.join(", ") : "Select Sizes..."}
-                  </span>
-                  <svg className="w-4 h-4 text-[#6f6a65]/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                  </svg>
-                </button>
-                {sizeDropdownOpen && (
-                  <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-[#e8e1d9] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.08)] z-50 overflow-hidden p-3 space-y-1.5 max-h-56 overflow-y-auto">
-                    {availableSizes.length === 0 ? (
-                      <div className="p-3 text-center text-[#6f6a65]/40 text-xs italic">No sizes created. Add sizes in the left sidebar.</div>
-                    ) : (
-                      availableSizes.map((sz) => {
-                        const selected = formData.sizes.includes(sz);
-                        return (
-                          <label key={sz} className="flex items-center gap-3 px-3 py-2 hover:bg-[#fcfbf9] rounded-xl cursor-pointer select-none">
-                            <input
-                              type="checkbox"
-                              checked={selected}
-                              onChange={() => {
-                                const newSizes = selected
-                                  ? formData.sizes.filter(s => s !== sz)
-                                  : [...formData.sizes, sz];
-                                setFormData(prev => ({ ...prev, sizes: newSizes }));
-                              }}
-                              className="w-4 h-4 rounded border-[#e8e1d9] text-[#b89b5e] focus:ring-[#b89b5e]"
-                            />
-                            <span className="text-xs font-semibold text-[#2b2622]">{sz}</span>
-                          </label>
-                        );
-                      })
-                    )}
-                  </div>
-                )}
+            )}
+
+            {/* Metal Filter Dropdown */}
+            {formData.category?.toLowerCase() === "jewellery" && (
+              <div ref={metalRef}>
+                <div className="flex items-center justify-between py-2">
+                  <span className="text-xs font-black uppercase tracking-widest text-[#6f6a65]">Metal</span>
+                  <span className="text-[10px] uppercase font-black text-[#b89b5e] bg-[#b89b5e]/10 px-2.5 py-1 rounded-full">{formData.metals.length} selected</span>
+                </div>
+                <div className="relative mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setMetalDropdownOpen(!metalDropdownOpen)}
+                    className="w-full p-3.5 rounded-2xl border border-[#e8e1d9] bg-[#fcfbf9] outline-none text-sm transition-all text-left font-semibold cursor-pointer flex items-center justify-between"
+                  >
+                    <span className={formData.metals.length > 0 ? "text-[#2b2622]" : "text-[#6f6a65]/30 italic"}>
+                      {formData.metals.length > 0 ? formData.metals.join(", ") : "Select Metals..."}
+                    </span>
+                    <svg className="w-4 h-4 text-[#6f6a65]/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                    </svg>
+                  </button>
+                  {metalDropdownOpen && (
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-[#e8e1d9] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.08)] z-50 overflow-hidden p-3 space-y-1.5 max-h-56 overflow-y-auto">
+                      {availableMetals.length === 0 ? (
+                        <div className="p-3 text-center text-[#6f6a65]/40 text-xs italic">No metals created. Add metals in the left sidebar.</div>
+                      ) : (
+                        availableMetals.map((m) => {
+                          const selected = formData.metals.includes(m);
+                          return (
+                            <label key={m} className="flex items-center gap-3 px-3 py-2 hover:bg-[#fcfbf9] rounded-xl cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={selected}
+                                onChange={() => {
+                                  const newMetals = selected
+                                    ? formData.metals.filter(item => item !== m)
+                                    : [...formData.metals, m];
+                                  setFormData(prev => ({ ...prev, metals: newMetals }));
+                                }}
+                                className="w-4 h-4 rounded border-[#e8e1d9] text-[#b89b5e] focus:ring-[#b89b5e]"
+                              />
+                              <span className="text-xs font-semibold text-[#2b2622]">{m}</span>
+                            </label>
+                          );
+                        })
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Color Filter Dropdown */}
-            <div ref={colorRef}>
-              <div className="flex items-center justify-between py-2">
-                <span className="text-xs font-black uppercase tracking-widest text-[#6f6a65]">Color</span>
-                <span className="text-[10px] uppercase font-black text-[#b89b5e] bg-[#b89b5e]/10 px-2.5 py-1 rounded-full">{formData.colors.length} selected</span>
+            {formData.category?.toLowerCase() !== "jewellery" && (
+              <div ref={colorRef}>
+                <div className="flex items-center justify-between py-2">
+                  <span className="text-xs font-black uppercase tracking-widest text-[#6f6a65]">Color</span>
+                  <span className="text-[10px] uppercase font-black text-[#b89b5e] bg-[#b89b5e]/10 px-2.5 py-1 rounded-full">{formData.colors.length} selected</span>
+                </div>
+                <div className="relative mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setColorDropdownOpen(!colorDropdownOpen)}
+                    className="w-full p-3.5 rounded-2xl border border-[#e8e1d9] bg-[#fcfbf9] outline-none text-sm transition-all text-left font-semibold cursor-pointer flex items-center justify-between"
+                  >
+                    <span className={formData.colors.length > 0 ? "text-[#2b2622]" : "text-[#6f6a65]/30 italic"}>
+                      {formData.colors.length > 0 
+                        ? formData.colors.map(c => c.includes("|") ? c.split("|")[0] : c).join(", ") 
+                        : "Select Colors..."}
+                    </span>
+                    <svg className="w-4 h-4 text-[#6f6a65]/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                    </svg>
+                  </button>
+                  {colorDropdownOpen && (
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-[#e8e1d9] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.08)] z-50 overflow-hidden p-3 space-y-1.5 max-h-56 overflow-y-auto">
+                      {availableColors.length === 0 ? (
+                        <div className="p-3 text-center text-[#6f6a65]/40 text-xs italic">No colors created. Add colors in the left sidebar.</div>
+                      ) : (
+                        availableColors.map((col) => {
+                          const hasPipe = col.includes("|");
+                          const name = hasPipe ? col.split("|")[0] : col;
+                          const hex = hasPipe ? col.split("|")[1] : "#CCCCCC";
+                          const selected = formData.colors.includes(col);
+                          return (
+                            <label key={col} className="flex items-center gap-3 px-3 py-2 hover:bg-[#fcfbf9] rounded-xl cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={selected}
+                                onChange={() => {
+                                  const newCols = selected
+                                    ? formData.colors.filter(c => c !== col)
+                                    : [...formData.colors, col];
+                                  setFormData(prev => ({ ...prev, colors: newCols }));
+                                }}
+                                className="w-4 h-4 rounded border-[#e8e1d9] text-[#b89b5e] focus:ring-[#b89b5e]"
+                              />
+                              <div 
+                                className="w-4 h-4 rounded-full border border-stone-200 shadow-sm shrink-0" 
+                                style={{ backgroundColor: hex }}
+                              />
+                              <span className="text-xs font-semibold text-[#2b2622]">{name}</span>
+                            </label>
+                          );
+                        })
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="relative mt-2">
-                <button
-                  type="button"
-                  onClick={() => setColorDropdownOpen(!colorDropdownOpen)}
-                  className="w-full p-3.5 rounded-2xl border border-[#e8e1d9] bg-[#fcfbf9] outline-none text-sm transition-all text-left font-semibold cursor-pointer flex items-center justify-between"
-                >
-                  <span className={formData.colors.length > 0 ? "text-[#2b2622]" : "text-[#6f6a65]/30 italic"}>
-                    {formData.colors.length > 0 
-                      ? formData.colors.map(c => c.includes("|") ? c.split("|")[0] : c).join(", ") 
-                      : "Select Colors..."}
-                  </span>
-                  <svg className="w-4 h-4 text-[#6f6a65]/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                  </svg>
-                </button>
-                {colorDropdownOpen && (
-                  <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-[#e8e1d9] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.08)] z-50 overflow-hidden p-3 space-y-1.5 max-h-56 overflow-y-auto">
-                    {availableColors.length === 0 ? (
-                      <div className="p-3 text-center text-[#6f6a65]/40 text-xs italic">No colors created. Add colors in the left sidebar.</div>
-                    ) : (
-                      availableColors.map((col) => {
-                        const hasPipe = col.includes("|");
-                        const name = hasPipe ? col.split("|")[0] : col;
-                        const hex = hasPipe ? col.split("|")[1] : "#CCCCCC";
-                        const selected = formData.colors.includes(col);
-                        return (
-                          <label key={col} className="flex items-center gap-3 px-3 py-2 hover:bg-[#fcfbf9] rounded-xl cursor-pointer select-none">
-                            <input
-                              type="checkbox"
-                              checked={selected}
-                              onChange={() => {
-                                const newCols = selected
-                                  ? formData.colors.filter(c => c !== col)
-                                  : [...formData.colors, col];
-                                setFormData(prev => ({ ...prev, colors: newCols }));
-                              }}
-                              className="w-4 h-4 rounded border-[#e8e1d9] text-[#b89b5e] focus:ring-[#b89b5e]"
-                            />
-                            <div 
-                              className="w-4 h-4 rounded-full border border-stone-200 shadow-sm shrink-0" 
-                              style={{ backgroundColor: hex }}
-                            />
-                            <span className="text-xs font-semibold text-[#2b2622]">{name}</span>
-                          </label>
-                        );
-                      })
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
+            )}
 
-            {/* Fabric Filter Dropdown */}
-            <div ref={fabricRef}>
-              <div className="flex items-center justify-between py-2">
-                <span className="text-xs font-black uppercase tracking-widest text-[#6f6a65]">Fabric</span>
-                <span className="text-[10px] uppercase font-black text-[#b89b5e] bg-[#b89b5e]/10 px-2.5 py-1 rounded-full">{formData.fabrics.length} selected</span>
+            {/* Jewel Color Filter Dropdown */}
+            {formData.category?.toLowerCase() === "jewellery" && (
+              <div ref={jewelColorRef}>
+                <div className="flex items-center justify-between py-2">
+                  <span className="text-xs font-black uppercase tracking-widest text-[#6f6a65]">Jewel Color</span>
+                  <span className="text-[10px] uppercase font-black text-[#b89b5e] bg-[#b89b5e]/10 px-2.5 py-1 rounded-full">{formData.jewelColors.length} selected</span>
+                </div>
+                <div className="relative mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setJewelColorDropdownOpen(!jewelColorDropdownOpen)}
+                    className="w-full p-3.5 rounded-2xl border border-[#e8e1d9] bg-[#fcfbf9] outline-none text-sm transition-all text-left font-semibold cursor-pointer flex items-center justify-between"
+                  >
+                    <span className={formData.jewelColors.length > 0 ? "text-[#2b2622]" : "text-[#6f6a65]/30 italic"}>
+                      {formData.jewelColors.length > 0 
+                        ? formData.jewelColors.map(c => c.includes("|") ? c.split("|")[0] : c).join(", ") 
+                        : "Select Jewel Colors..."}
+                    </span>
+                    <svg className="w-4 h-4 text-[#6f6a65]/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                    </svg>
+                  </button>
+                  {jewelColorDropdownOpen && (
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-[#e8e1d9] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.08)] z-50 overflow-hidden p-3 space-y-1.5 max-h-56 overflow-y-auto">
+                      {availableJewelColors.length === 0 ? (
+                        <div className="p-3 text-center text-[#6f6a65]/40 text-xs italic">No jewel colors created. Add jewel colors in the left sidebar.</div>
+                      ) : (
+                        availableJewelColors.map((col) => {
+                          const hasPipe = col.includes("|");
+                          const name = hasPipe ? col.split("|")[0] : col;
+                          const hex = hasPipe ? col.split("|")[1] : "#CCCCCC";
+                          const selected = formData.jewelColors.includes(col);
+                          return (
+                            <label key={col} className="flex items-center gap-3 px-3 py-2 hover:bg-[#fcfbf9] rounded-xl cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={selected}
+                                onChange={() => {
+                                  const newCols = selected
+                                    ? formData.jewelColors.filter(c => c !== col)
+                                    : [...formData.jewelColors, col];
+                                  setFormData(prev => ({ ...prev, jewelColors: newCols }));
+                                }}
+                                className="w-4 h-4 rounded border-[#e8e1d9] text-[#b89b5e] focus:ring-[#b89b5e]"
+                              />
+                              <div 
+                                className="w-4 h-4 rounded-full border border-stone-200 shadow-sm shrink-0" 
+                                style={{ backgroundColor: hex }}
+                              />
+                              <span className="text-xs font-semibold text-[#2b2622]">{name}</span>
+                            </label>
+                          );
+                        })
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="relative mt-2">
-                <button
-                  type="button"
-                  onClick={() => setFabricDropdownOpen(!fabricDropdownOpen)}
-                  className="w-full p-3.5 rounded-2xl border border-[#e8e1d9] bg-[#fcfbf9] outline-none text-sm transition-all text-left font-semibold cursor-pointer flex items-center justify-between"
-                >
-                  <span className={formData.fabrics.length > 0 ? "text-[#2b2622]" : "text-[#6f6a65]/30 italic"}>
-                    {formData.fabrics.length > 0 ? formData.fabrics.join(", ") : "Select Fabrics..."}
-                  </span>
-                  <svg className="w-4 h-4 text-[#6f6a65]/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                  </svg>
-                </button>
-                {fabricDropdownOpen && (
-                  <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-[#e8e1d9] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.08)] z-50 overflow-hidden p-3 space-y-1.5 max-h-56 overflow-y-auto">
-                    {availableFabrics.length === 0 ? (
-                      <div className="p-3 text-center text-[#6f6a65]/40 text-xs italic">No fabrics created. Add fabrics in the left sidebar.</div>
-                    ) : (
-                      availableFabrics.map((fab) => {
-                        const selected = formData.fabrics.includes(fab);
-                        return (
-                          <label key={fab} className="flex items-center gap-3 px-3 py-2 hover:bg-[#fcfbf9] rounded-xl cursor-pointer select-none">
-                            <input
-                              type="checkbox"
-                              checked={selected}
-                              onChange={() => {
-                                const newFabs = selected
-                                  ? formData.fabrics.filter(f => f !== fab)
-                                  : [...formData.fabrics, fab];
-                                setFormData(prev => ({ ...prev, fabrics: newFabs }));
-                              }}
-                              className="w-4 h-4 rounded border-[#e8e1d9] text-[#b89b5e] focus:ring-[#b89b5e]"
-                            />
-                            <span className="text-xs font-semibold text-[#2b2622]">{fab}</span>
-                          </label>
-                        );
-                      })
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
+            )}
 
-            {/* Work Filter Dropdown */}
-            <div ref={workRef}>
-              <div className="flex items-center justify-between py-2">
-                <span className="text-xs font-black uppercase tracking-widest text-[#6f6a65]">Work</span>
-                <span className="text-[10px] uppercase font-black text-[#b89b5e] bg-[#b89b5e]/10 px-2.5 py-1 rounded-full">{formData.works.length} selected</span>
-              </div>
-              <div className="relative mt-2">
-                <button
-                  type="button"
-                  onClick={() => setWorkDropdownOpen(!workDropdownOpen)}
-                  className="w-full p-3.5 rounded-2xl border border-[#e8e1d9] bg-[#fcfbf9] outline-none text-sm transition-all text-left font-semibold cursor-pointer flex items-center justify-between"
-                >
-                  <span className={formData.works.length > 0 ? "text-[#2b2622]" : "text-[#6f6a65]/30 italic"}>
-                    {formData.works.length > 0 ? formData.works.join(", ") : "Select Works..."}
-                  </span>
-                  <svg className="w-4 h-4 text-[#6f6a65]/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                  </svg>
-                </button>
-                {workDropdownOpen && (
-                  <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-[#e8e1d9] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.08)] z-50 overflow-hidden p-3 space-y-1.5 max-h-56 overflow-y-auto">
-                    {availableWorks.length === 0 ? (
-                      <div className="p-3 text-center text-[#6f6a65]/40 text-xs italic">No works created. Add works in the left sidebar.</div>
-                    ) : (
-                      availableWorks.map((wk) => {
-                        const selected = formData.works.includes(wk);
-                        return (
-                          <label key={wk} className="flex items-center gap-3 px-3 py-2 hover:bg-[#fcfbf9] rounded-xl cursor-pointer select-none">
-                            <input
-                              type="checkbox"
-                              checked={selected}
-                              onChange={() => {
-                                const newWorks = selected
-                                  ? formData.works.filter(w => w !== wk)
-                                  : [...formData.works, wk];
-                                setFormData(prev => ({ ...prev, works: newWorks }));
-                              }}
-                              className="w-4 h-4 rounded border-[#e8e1d9] text-[#b89b5e] focus:ring-[#b89b5e]"
-                            />
-                            <span className="text-xs font-semibold text-[#2b2622]">{wk}</span>
-                          </label>
-                        );
-                      })
+            {formData.category?.toLowerCase() !== "jewellery" && (
+              <>
+                {/* Fabric Filter Dropdown */}
+                <div ref={fabricRef}>
+                  <div className="flex items-center justify-between py-2">
+                    <span className="text-xs font-black uppercase tracking-widest text-[#6f6a65]">Fabric</span>
+                    <span className="text-[10px] uppercase font-black text-[#b89b5e] bg-[#b89b5e]/10 px-2.5 py-1 rounded-full">{formData.fabrics.length} selected</span>
+                  </div>
+                  <div className="relative mt-2">
+                    <button
+                      type="button"
+                      onClick={() => setFabricDropdownOpen(!fabricDropdownOpen)}
+                      className="w-full p-3.5 rounded-2xl border border-[#e8e1d9] bg-[#fcfbf9] outline-none text-sm transition-all text-left font-semibold cursor-pointer flex items-center justify-between"
+                    >
+                      <span className={formData.fabrics.length > 0 ? "text-[#2b2622]" : "text-[#6f6a65]/30 italic"}>
+                        {formData.fabrics.length > 0 ? formData.fabrics.join(", ") : "Select Fabrics..."}
+                      </span>
+                      <svg className="w-4 h-4 text-[#6f6a65]/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                      </svg>
+                    </button>
+                    {fabricDropdownOpen && (
+                      <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-[#e8e1d9] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.08)] z-50 overflow-hidden p-3 space-y-1.5 max-h-56 overflow-y-auto">
+                        {availableFabrics.length === 0 ? (
+                          <div className="p-3 text-center text-[#6f6a65]/40 text-xs italic">No fabrics created. Add fabrics in the left sidebar.</div>
+                        ) : (
+                          availableFabrics.map((fab) => {
+                            const selected = formData.fabrics.includes(fab);
+                            return (
+                              <label key={fab} className="flex items-center gap-3 px-3 py-2 hover:bg-[#fcfbf9] rounded-xl cursor-pointer select-none">
+                                <input
+                                  type="checkbox"
+                                  checked={selected}
+                                  onChange={() => {
+                                    const newFabs = selected
+                                      ? formData.fabrics.filter(f => f !== fab)
+                                      : [...formData.fabrics, fab];
+                                    setFormData(prev => ({ ...prev, fabrics: newFabs }));
+                                  }}
+                                  className="w-4 h-4 rounded border-[#e8e1d9] text-[#b89b5e] focus:ring-[#b89b5e]"
+                                />
+                                <span className="text-xs font-semibold text-[#2b2622]">{fab}</span>
+                              </label>
+                            );
+                          })
+                        )}
+                      </div>
                     )}
                   </div>
-                )}
-              </div>
-            </div>
+                </div>
+
+                {/* Work Filter Dropdown */}
+                <div ref={workRef}>
+                  <div className="flex items-center justify-between py-2">
+                    <span className="text-xs font-black uppercase tracking-widest text-[#6f6a65]">Work</span>
+                    <span className="text-[10px] uppercase font-black text-[#b89b5e] bg-[#b89b5e]/10 px-2.5 py-1 rounded-full">{formData.works.length} selected</span>
+                  </div>
+                  <div className="relative mt-2">
+                    <button
+                      type="button"
+                      onClick={() => setWorkDropdownOpen(!workDropdownOpen)}
+                      className="w-full p-3.5 rounded-2xl border border-[#e8e1d9] bg-[#fcfbf9] outline-none text-sm transition-all text-left font-semibold cursor-pointer flex items-center justify-between"
+                    >
+                      <span className={formData.works.length > 0 ? "text-[#2b2622]" : "text-[#6f6a65]/30 italic"}>
+                        {formData.works.length > 0 ? formData.works.join(", ") : "Select Works..."}
+                      </span>
+                      <svg className="w-4 h-4 text-[#6f6a65]/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                      </svg>
+                    </button>
+                    {workDropdownOpen && (
+                      <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-[#e8e1d9] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.08)] z-50 overflow-hidden p-3 space-y-1.5 max-h-56 overflow-y-auto">
+                        {availableWorks.length === 0 ? (
+                          <div className="p-3 text-center text-[#6f6a65]/40 text-xs italic">No works created. Add works in the left sidebar.</div>
+                        ) : (
+                          availableWorks.map((wk) => {
+                            const selected = formData.works.includes(wk);
+                            return (
+                              <label key={wk} className="flex items-center gap-3 px-3 py-2 hover:bg-[#fcfbf9] rounded-xl cursor-pointer select-none">
+                                <input
+                                  type="checkbox"
+                                  checked={selected}
+                                  onChange={() => {
+                                    const newWorks = selected
+                                      ? formData.works.filter(w => w !== wk)
+                                      : [...formData.works, wk];
+                                    setFormData(prev => ({ ...prev, works: newWorks }));
+                                  }}
+                                  className="w-4 h-4 rounded border-[#e8e1d9] text-[#b89b5e] focus:ring-[#b89b5e]"
+                                />
+                                <span className="text-xs font-semibold text-[#2b2622]">{wk}</span>
+                              </label>
+                            );
+                          })
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -1048,23 +1201,45 @@ export default function EditProductPage({ params }) {
             )}
           </div>
 
-          {/* Description */}
-          <div>
-            <label className="block text-[9px] uppercase font-black tracking-widest text-[#6f6a65] mb-2 ml-1">
-              Sacred Description
-            </label>
-            <textarea
-              name="description"
-              value={formData.description}
-              onChange={handleFormChange}
-              required
-              rows="4"
-              placeholder="Describe the essence, origin, and ritual significance of this offering..."
-              className="w-full p-3.5 rounded-2xl border border-[#e8e1d9] bg-[#fcfbf9] focus:ring-2 focus:ring-[#b89b5e]/20 focus:border-[#b89b5e] outline-none text-sm transition-all resize-none text-[#2b2622] font-semibold placeholder:text-[#6f6a65]/30 placeholder:italic leading-relaxed"
-            ></textarea>
-            <p className="text-[9px] text-[#6f6a65]/40 italic mt-1.5 ml-1">
-              {formData.description.length} characters
-            </p>
+          {/* Description Fields Group */}
+          <div className="space-y-5">
+            {/* Short Description */}
+            <div>
+              <label className="block text-[9px] uppercase font-black tracking-widest text-[#6f6a65] mb-2 ml-1">
+                Short Description
+              </label>
+              <textarea
+                name="shortDescription"
+                value={formData.shortDescription}
+                onChange={handleFormChange}
+                required
+                rows="2"
+                placeholder="Brief summary of the product..."
+                className="w-full p-3.5 rounded-2xl border border-[#e8e1d9] bg-[#fcfbf9] focus:ring-2 focus:ring-[#b89b5e]/20 focus:border-[#b89b5e] outline-none text-sm transition-all resize-none text-[#2b2622] font-semibold placeholder:text-[#6f6a65]/30 placeholder:italic leading-relaxed"
+              ></textarea>
+              <p className="text-[9px] text-[#6f6a65]/40 italic mt-1.5 ml-1">
+                {formData.shortDescription.length} characters (Recommended limit: 160)
+              </p>
+            </div>
+
+            {/* Long Description */}
+            <div>
+              <label className="block text-[9px] uppercase font-black tracking-widest text-[#6f6a65] mb-2 ml-1">
+                Long Description
+              </label>
+              <textarea
+                name="longDescription"
+                value={formData.longDescription}
+                onChange={handleFormChange}
+                required
+                rows="5"
+                placeholder="Detailed description of the product..."
+                className="w-full p-3.5 rounded-2xl border border-[#e8e1d9] bg-[#fcfbf9] focus:ring-2 focus:ring-[#b89b5e]/20 focus:border-[#b89b5e] outline-none text-sm transition-all resize-none text-[#2b2622] font-semibold placeholder:text-[#6f6a65]/30 placeholder:italic leading-relaxed"
+              ></textarea>
+              <p className="text-[9px] text-[#6f6a65]/40 italic mt-1.5 ml-1">
+                {formData.longDescription.length} characters
+              </p>
+            </div>
           </div>
         </div>
 
@@ -1094,7 +1269,7 @@ export default function EditProductPage({ params }) {
             </>
           ) : (
             <>
-              Update Ritual <span className="text-lg leading-none">→</span>
+              Update Product <span className="text-lg leading-none">→</span>
             </>
           )}
         </button>

@@ -74,7 +74,7 @@ export default function WorksPage() {
     return (
       <div className="flex flex-col justify-center items-center h-[60vh] gap-6">
         <LoadingSpinner size="w-12 h-12" color="border-[#b89b5e]" />
-        <p className="text-[10px] font-black uppercase tracking-[0.5em] text-[#b89b5e] animate-pulse">Illuminating Chamber...</p>
+        <p className="text-[10px] font-black uppercase tracking-[0.5em] text-[#b89b5e] animate-pulse">Loading Works...</p>
       </div>
     );
   }
@@ -94,7 +94,7 @@ export default function WorksPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-12 md:mb-16 px-4 sm:px-0">
         <div>
-          <span className="text-[#b89b5e] font-black tracking-[0.5em] uppercase text-[9px] md:text-[10px] block mb-2 md:mb-3">— Artistry Chamber —</span>
+          <span className="text-[#b89b5e] font-black tracking-[0.5em] uppercase text-[9px] md:text-[10px] block mb-2 md:mb-3">— Work Settings —</span>
           <h1 className="text-4xl md:text-5xl font-bold tracking-tighter text-[#2b2622] leading-none mb-2">Work Filter</h1>
           <p className="text-[#6f6a65] text-xs max-w-md leading-relaxed opacity-60 italic">Define valid embroidery, prints, or craft works for products.</p>
         </div>
@@ -102,7 +102,7 @@ export default function WorksPage() {
           onClick={() => setIsModalOpen(true)}
           className="px-6 py-3.5 bg-[#2b2622] hover:bg-[#b89b5e] text-white font-black uppercase tracking-[0.2em] text-[10px] rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5 cursor-pointer shrink-0"
         >
-          Manifest Work +
+          Add Work +
         </button>
       </div>
 
@@ -113,7 +113,7 @@ export default function WorksPage() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-[#fcfbf9] border-b border-[#f2eee9]">
-                  <th className="p-6 font-black text-[#6f6a65]/40 text-[9px] uppercase tracking-[0.3em]">Manifested Works</th>
+                  <th className="p-6 font-black text-[#6f6a65]/40 text-[9px] uppercase tracking-[0.3em]">Available Works</th>
                   <th className="p-6 font-black text-[#6f6a65]/40 text-[9px] uppercase tracking-[0.3em] text-right">Actions</th>
                 </tr>
               </thead>
@@ -121,7 +121,7 @@ export default function WorksPage() {
                 {attributes.length === 0 ? (
                   <tr>
                     <td colSpan="2" className="p-16 text-center text-[#6f6a65]/40 text-xs italic">
-                      Chamber is empty.
+                      No works available.
                     </td>
                   </tr>
                 ) : (
@@ -136,7 +136,7 @@ export default function WorksPage() {
                           disabled={deletingId === attr._id}
                           className="text-red-400 hover:text-red-600 font-black text-[9px] tracking-widest uppercase transition-all cursor-pointer disabled:opacity-50"
                         >
-                          {deletingId === attr._id ? <LoadingSpinner color="border-red-500" /> : "Expel"}
+                          {deletingId === attr._id ? <LoadingSpinner color="border-red-500" /> : "Delete"}
                         </button>
                       </td>
                     </tr>
@@ -161,7 +161,7 @@ export default function WorksPage() {
               </svg>
             </button>
             
-            <h3 className="text-lg font-black uppercase tracking-widest text-[#2b2622] mb-6">Manifest Work</h3>
+            <h3 className="text-lg font-black uppercase tracking-widest text-[#2b2622] mb-6">Add Work</h3>
             <form onSubmit={handleAdd} className="space-y-6">
               <div>
                 <label className="block text-[9px] uppercase font-black tracking-widest text-[#6f6a65] mb-2.5 ml-1">Work Type</label>
@@ -179,7 +179,7 @@ export default function WorksPage() {
                 disabled={adding} 
                 className="w-full py-4 rounded-xl text-white bg-[#2b2622] hover:bg-[#b89b5e] font-black uppercase tracking-[0.2em] text-xs transition-all cursor-pointer flex items-center justify-center gap-2"
               >
-                {adding ? <LoadingSpinner /> : "Manifest Work"}
+                {adding ? <LoadingSpinner /> : "Add Work"}
               </button>
             </form>
           </div>

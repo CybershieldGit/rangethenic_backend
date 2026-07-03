@@ -96,6 +96,25 @@ const WorkIcon = () => (
   </svg>
 );
 
+const ClothingDropdownIcon = () => (
+  <svg className="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M21 8a2 2 0 00-2-2h-3L13.5 3h-3L8 6H5a2 2 0 00-2 2v11a2 2 0 002 2h14a2 2 0 002-2V8z" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 12v6" />
+  </svg>
+);
+
+const JewelleryDropdownIcon = () => (
+  <svg className="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+  </svg>
+);
+
+const MetalIcon = () => (
+  <svg className="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L5.6 15.11a2 2 0 01-1.183-2.44l2.078-6.923A2 2 0 018.428 4.43l7.144 2.143a2 2 0 011.383 2.44l-2.078 6.923a2 2 0 01-1.449 1.547l-1.9.38" />
+  </svg>
+);
+
 export default function AdminLayout({ children }) {
   const router = useRouter();
   const [isAuthorized, setIsAuthorized] = useState(false);
@@ -213,12 +232,24 @@ export default function AdminLayout({ children }) {
   const pathname = usePathname();
   const isActive = (path) => pathname === path;
 
+  const [clothingOpen, setClothingOpen] = useState(false);
+  const [jewelleryOpen, setJewelleryOpen] = useState(false);
+
+  useEffect(() => {
+    if (["/admin/sizes", "/admin/fabrics", "/admin/works", "/admin/colors"].some(p => pathname === p)) {
+      setClothingOpen(true);
+    }
+    if (["/admin/metals", "/admin/jewel-colors"].some(p => pathname === p)) {
+      setJewelleryOpen(true);
+    }
+  }, [pathname]);
+
   if (loading) {
     return (
-      <div className={`${notoSerif.variable} admin-theme flex items-center justify-center min-h-screen bg-[#f7f6f1]`}>
+      <div className="admin-theme flex items-center justify-center min-h-screen bg-[var(--bg-primary)]">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 border-4 border-[#e8e1d9] border-t-[#b89b5e] rounded-full animate-spin"></div>
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#2b2622]/40 animate-pulse">Authenticating Presence...</p>
+          <div className="w-10 h-10 border-4 border-[var(--bg-card)] border-t-[var(--accent)] rounded-full animate-spin"></div>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-body)]/40 animate-pulse">Authenticating Presence...</p>
         </div>
       </div>
     );
@@ -226,7 +257,7 @@ export default function AdminLayout({ children }) {
 
   if (!isAuthorized) {
     return (
-      <div className={`${notoSerif.variable} min-h-screen bg-[#FDF8F0] flex items-center justify-center py-8 px-4 md:px-8 md:py-10`}>
+      <div className="min-h-screen bg-[#FDF8F0] flex items-center justify-center py-8 px-4 md:px-8 md:py-10">
         <div className="w-full max-w-7xl mx-auto flex flex-col lg:flex-row lg:items-stretch gap-8 lg:gap-10">
           {/* Left Image (Desktop only) */}
           <div className="relative hidden lg:block min-h-[480px] flex-1 overflow-hidden">
@@ -418,24 +449,52 @@ export default function AdminLayout({ children }) {
     </Link>
   );
 
+  const NavDropdown = ({ label, icon, isOpen, setIsOpen, children }) => {
+    return (
+      <div className="flex flex-col gap-1">
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className={`w-full px-5 py-3.5 rounded-xl transition-all font-bold text-sm flex items-center justify-between text-[#6f6a65] hover:bg-[#f7f6f1] hover:text-[#2b2622] cursor-pointer`}
+        >
+          <div className="flex items-center gap-3.5">
+            <span className="text-[#6f6a65]">{icon}</span>
+            <span>{label}</span>
+          </div>
+          <svg
+            className={`w-4 h-4 text-[#6f6a65]/40 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+            fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+          </svg>
+        </button>
+        {isOpen && (
+          <div className="pl-6 flex flex-col gap-1 border-l-2 border-[#dcd4cb] ml-7 mt-1 transition-all">
+            {children}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
-    <div className={`${notoSerif.variable} admin-theme min-h-screen bg-[#f7f6f1] flex flex-col lg:flex-row lg:h-screen lg:overflow-hidden`}>
+    <div className="admin-theme min-h-screen bg-[var(--bg-primary)] flex flex-col lg:flex-row lg:h-screen lg:overflow-hidden">
 
       {/* Mobile Sticky Header Bar */}
-      <header className="lg:hidden w-full bg-[#e8e1d9] px-6 py-3 flex items-center justify-between border-b border-[#dcd4cb] sticky top-0 z-[60]">
+      <header className="lg:hidden w-full bg-[var(--sidebar-bg)] px-6 py-3 flex items-center justify-between border-b border-[#e9e9e9] sticky top-0 z-[60]">
         <div className="flex items-center gap-3">
           <div className="w-20 h-10 overflow-hidden flex items-center justify-center">
             <img
-              src="/assets/images/rakaa_logo.png"
-              alt="Rakaarituals Logo"
-              className="w-full h-full object-contain scale-[1.7] origin-center"
+              src="/ranga_logo_header.svg"
+              alt="Rangethenics Logo"
+              className="w-full h-full object-contain"
             />
           </div>
-          <span className="text-[8px] text-[#6f6a65] uppercase font-bold tracking-[0.2em] bg-[#dcd4cb] px-2 py-0.5 rounded-full">Admin Panel</span>
+          <span className="text-[8px] text-[var(--text-body)] uppercase font-bold tracking-[0.2em] bg-[#e9e9e9] px-2 py-0.5 rounded-full">Admin Panel</span>
         </div>
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="p-2 text-[#2b2622] hover:bg-[#dcd4cb] rounded-lg transition-colors cursor-pointer"
+          className="p-2 text-[var(--text-heading)] hover:bg-[#e9e9e9] rounded-lg transition-colors cursor-pointer"
         >
           {isMobileMenuOpen ? (
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
@@ -458,16 +517,16 @@ export default function AdminLayout({ children }) {
       )}
 
       {/* Sidebar Drawer container */}
-      <aside className={`fixed top-[65px] bottom-0 lg:inset-y-0 left-0 w-72 bg-[#e8e1d9] p-8 flex flex-col gap-4 border-r border-[#dcd4cb] z-50 transition-transform duration-300 transform lg:rounded-none
+      <aside className={`fixed top-[65px] bottom-0 lg:inset-y-0 left-0 w-72 bg-[var(--sidebar-bg)] p-8 flex flex-col gap-4 border-r border-[#e9e9e9] z-50 transition-transform duration-300 transform lg:rounded-none
         lg:translate-x-0 lg:static lg:h-screen lg:w-64 xl:w-72 lg:flex-shrink-0 lg:z-auto
         ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"}`}
       >
         <div className="hidden lg:block">
           <div className="w-full h-24 overflow-hidden flex items-center justify-center">
             <img
-              src="/assets/images/rakaa_logo.png"
-              alt="Rakaarituals Logo"
-              className="w-full h-full object-contain scale-[1.7] origin-center"
+              src="/ranga_logo_header.svg"
+              alt="Rangethenics Logo"
+              className="w-full h-full object-contain"
             />
           </div>
         </div>
@@ -479,10 +538,29 @@ export default function AdminLayout({ children }) {
               <NavLink href="/admin" icon={<DashboardIcon />}>Dashboard</NavLink>
               <NavLink href="/admin/products" icon={<ProductsIcon />}>Products</NavLink>
               <NavLink href="/admin/categories" icon={<CategoriesIcon />}>Categories</NavLink>
-              <NavLink href="/admin/sizes" icon={<SizeIcon />}>Size</NavLink>
-              <NavLink href="/admin/colors" icon={<ColorIcon />}>Color</NavLink>
-              <NavLink href="/admin/fabrics" icon={<FabricIcon />}>Fabric</NavLink>
-              <NavLink href="/admin/works" icon={<WorkIcon />}>Work</NavLink>
+              
+              <NavDropdown
+                label="Clothing"
+                icon={<ClothingDropdownIcon />}
+                isOpen={clothingOpen}
+                setIsOpen={setClothingOpen}
+              >
+                <NavLink href="/admin/sizes" icon={<SizeIcon />}>Size</NavLink>
+                <NavLink href="/admin/colors" icon={<ColorIcon />}>Color</NavLink>
+                <NavLink href="/admin/fabrics" icon={<FabricIcon />}>Fabric</NavLink>
+                <NavLink href="/admin/works" icon={<WorkIcon />}>Work</NavLink>
+              </NavDropdown>
+
+              <NavDropdown
+                label="Jewellery"
+                icon={<JewelleryDropdownIcon />}
+                isOpen={jewelleryOpen}
+                setIsOpen={setJewelleryOpen}
+              >
+                <NavLink href="/admin/metals" icon={<MetalIcon />}>Metal</NavLink>
+                <NavLink href="/admin/jewel-colors" icon={<ColorIcon />}>Color</NavLink>
+              </NavDropdown>
+
               <NavLink href="/admin/orders" icon={<OrdersIcon />}>Orders</NavLink>
               <NavLink href="/admin/coupons" icon={<CouponsIcon />}>Coupons</NavLink>
             </nav>

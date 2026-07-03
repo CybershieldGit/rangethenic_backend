@@ -7,7 +7,7 @@ const LoadingSpinner = ({ size = "w-4 h-4", color = "border-white" }) => (
   <div className={`${size} border-2 ${color} border-t-transparent rounded-full animate-spin`}></div>
 );
 
-export default function FabricsPage() {
+export default function MetalsPage() {
   const [attributes, setAttributes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [newValue, setNewValue] = useState("");
@@ -24,11 +24,11 @@ export default function FabricsPage() {
   const loadAttributes = async () => {
     try {
       setLoading(true);
-      const data = await fetchAttributes("fabric");
+      const data = await fetchAttributes("metal");
       setAttributes(data);
     } catch (err) {
       console.error(err);
-      showNotification(err.message || "Failed to load fabrics", "error");
+      showNotification(err.message || "Failed to load metals", "error");
     } finally {
       setLoading(false);
     }
@@ -45,13 +45,13 @@ export default function FabricsPage() {
 
     setAdding(true);
     try {
-      const created = await createAttributeAPI("fabric", val);
+      const created = await createAttributeAPI("metal", val);
       setAttributes((prev) => [...prev, created].sort((a, b) => a.value.localeCompare(b.value)));
       setNewValue("");
       setIsModalOpen(false);
-      showNotification(`Fabric "${val}" successfully created.`);
+      showNotification(`Metal "${val}" successfully created.`);
     } catch (err) {
-      showNotification(err.message || "Failed to add fabric", "error");
+      showNotification(err.message || "Failed to add metal", "error");
     } finally {
       setAdding(false);
     }
@@ -62,9 +62,9 @@ export default function FabricsPage() {
     try {
       await deleteAttributeAPI(id);
       setAttributes((prev) => prev.filter((item) => item._id !== id));
-      showNotification(`Fabric "${val}" removed.`);
+      showNotification(`Metal "${val}" removed.`);
     } catch (err) {
-      showNotification(err.message || "Failed to delete fabric", "error");
+      showNotification(err.message || "Failed to delete metal", "error");
     } finally {
       setDeletingId(null);
     }
@@ -74,7 +74,7 @@ export default function FabricsPage() {
     return (
       <div className="flex flex-col justify-center items-center h-[60vh] gap-6">
         <LoadingSpinner size="w-12 h-12" color="border-[#b89b5e]" />
-        <p className="text-[10px] font-black uppercase tracking-[0.5em] text-[#b89b5e] animate-pulse">Loading Fabrics...</p>
+        <p className="text-[10px] font-black uppercase tracking-[0.5em] text-[#b89b5e] animate-pulse">Loading Metals...</p>
       </div>
     );
   }
@@ -94,15 +94,15 @@ export default function FabricsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-12 md:mb-16 px-4 sm:px-0">
         <div>
-          <span className="text-[#b89b5e] font-black tracking-[0.5em] uppercase text-[9px] md:text-[10px] block mb-2 md:mb-3">— Fabric Settings —</span>
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tighter text-[#2b2622] leading-none mb-2">Fabric Filter</h1>
-          <p className="text-[#6f6a65] text-xs max-w-md leading-relaxed opacity-60 italic">Define fabric materials for your products.</p>
+          <span className="text-[#b89b5e] font-black tracking-[0.5em] uppercase text-[9px] md:text-[10px] block mb-2 md:mb-3">— Metal Settings —</span>
+          <h1 className="text-4xl md:text-5xl font-bold tracking-tighter text-[#2b2622] leading-none mb-2">Metal Filter</h1>
+          <p className="text-[#6f6a65] text-xs max-w-md leading-relaxed opacity-60 italic">Define valid metals for your products.</p>
         </div>
         <button
           onClick={() => setIsModalOpen(true)}
           className="px-6 py-3.5 bg-[#2b2622] hover:bg-[#b89b5e] text-white font-black uppercase tracking-[0.2em] text-[10px] rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5 cursor-pointer shrink-0"
         >
-          Add Fabric +
+          Add Metal +
         </button>
       </div>
 
@@ -113,7 +113,7 @@ export default function FabricsPage() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-[#fcfbf9] border-b border-[#f2eee9]">
-                  <th className="p-6 font-black text-[#6f6a65]/40 text-[9px] uppercase tracking-[0.3em]">Available Fabrics</th>
+                  <th className="p-6 font-black text-[#6f6a65]/40 text-[9px] uppercase tracking-[0.3em]">Available Metals</th>
                   <th className="p-6 font-black text-[#6f6a65]/40 text-[9px] uppercase tracking-[0.3em] text-right">Actions</th>
                 </tr>
               </thead>
@@ -121,7 +121,7 @@ export default function FabricsPage() {
                 {attributes.length === 0 ? (
                   <tr>
                     <td colSpan="2" className="p-16 text-center text-[#6f6a65]/40 text-xs italic">
-                      No fabrics available.
+                      No metals available.
                     </td>
                   </tr>
                 ) : (
@@ -161,16 +161,16 @@ export default function FabricsPage() {
               </svg>
             </button>
             
-            <h3 className="text-lg font-black uppercase tracking-widest text-[#2b2622] mb-6">Add Fabric</h3>
+            <h3 className="text-lg font-black uppercase tracking-widest text-[#2b2622] mb-6">Add Metal</h3>
             <form onSubmit={handleAdd} className="space-y-6">
               <div>
-                <label className="block text-[9px] uppercase font-black tracking-widest text-[#6f6a65] mb-2.5 ml-1">Fabric Name</label>
+                <label className="block text-[9px] uppercase font-black tracking-widest text-[#6f6a65] mb-2.5 ml-1">Metal Value</label>
                 <input 
                   type="text" 
                   value={newValue} 
                   onChange={(e) => setNewValue(e.target.value)} 
                   required 
-                  placeholder="e.g. Cotton, Mulberry Silk, Linen" 
+                  placeholder="e.g. Gold, Silver, Brass, Copper" 
                   className="w-full p-4 rounded-2xl border border-[#e8e1d9] bg-[#fcfbf9] focus:ring-2 focus:ring-[#b89b5e]/20 focus:border-[#b89b5e] outline-none text-sm transition-all text-[#2b2622] font-semibold"
                 />
               </div>
@@ -179,7 +179,7 @@ export default function FabricsPage() {
                 disabled={adding} 
                 className="w-full py-4 rounded-xl text-white bg-[#2b2622] hover:bg-[#b89b5e] font-black uppercase tracking-[0.2em] text-xs transition-all cursor-pointer flex items-center justify-center gap-2"
               >
-                {adding ? <LoadingSpinner /> : "Add Fabric"}
+                {adding ? <LoadingSpinner /> : "Add Metal"}
               </button>
             </form>
           </div>

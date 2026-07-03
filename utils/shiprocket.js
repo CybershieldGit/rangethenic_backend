@@ -52,9 +52,9 @@ const resolvePickupConfig = () => {
 
   return {
     pickupLocation: looksLikeFullAddress
-      ? (explicitName || 'RakaPrimary').slice(0, 36)
+      ? (explicitName || 'RangethenicsPrimary').slice(0, 36)
       : rawLocation.slice(0, 36),
-    pickupName: explicitName || (looksLikeFullAddress ? 'Rakaarituals' : ''),
+    pickupName: explicitName || (looksLikeFullAddress ? 'Rangethenics' : ''),
     pickupAddress: explicitAddress || (looksLikeFullAddress ? rawLocation.slice(0, 80) : ''),
     pickupAddress2: getEnv(['SHIP_ROCKET_PICKUP_ADDRESS_2', 'ship_rocket_pickup_address_2']),
     pickupCity: getEnv(['SHIP_ROCKET_PICKUP_CITY', 'ship_rocket_pickup_city'], 'Belagavi'),
@@ -98,7 +98,7 @@ export const getShiprocketConfig = () => {
     channelId: getEnv(['SHIP_ROCKET_CHANNEL_ID', 'ship_rocket_channel_id']),
     trackingPageUrl: getEnv(
       ['SHIPROCKET_TRACKING_PAGE_URL', 'SHIP_ROCKET_TRACKING_PAGE_URL'],
-      'https://rakaarituals.shiprocket.co/tracking'
+      'https://rangethenics.shiprocket.co/tracking'
     ),
     ...pickup,
   };
@@ -434,7 +434,7 @@ export const resolveActivePickupLocation = async () => {
 export const addPickupLocation = async (config = getShiprocketConfig()) => {
   const payload = {
     pickup_location: config.pickupLocation,
-    name: config.pickupName || 'Rakaarituals',
+    name: config.pickupName || 'Rangethenics',
     email: config.pickupEmail || config.email,
     phone: normalizePhone(config.pickupPhone),
     address: config.pickupAddress,
@@ -482,7 +482,7 @@ const formatProductSku = (product, item, index) => {
   const raw =
     product.sku ||
     `${CHANNEL_ORDER_PREFIX}-${item.product?.toString?.()?.slice(-6) || index}`;
-  return raw.replace(/^RAKA(?!A)/i, CHANNEL_ORDER_PREFIX);
+  return raw.replace(/^RANG(?!A)/i, CHANNEL_ORDER_PREFIX);
 };
 
 const parseCreateOrderResponse = (response = {}) => {
@@ -586,7 +586,7 @@ export const buildAdhocOrderPayload = (order, userEmail, productsById = {}, pick
     order_id: getChannelOrderId(order),
     order_date: formatShiprocketOrderDate(order.createdAt),
     pickup_location: pickup,
-    comment: `Rakaarituals order ${order._id.toString().slice(-8)}`,
+    comment: `Rangethenics order ${order._id.toString().slice(-8)}`,
     billing_customer_name: firstName,
     billing_last_name: lastName,
     billing_address: [order.shippingAddress.houseFlatNo, order.shippingAddress.streetArea]
@@ -597,7 +597,7 @@ export const buildAdhocOrderPayload = (order, userEmail, productsById = {}, pick
     billing_pincode: billingPincode,
     billing_state: order.shippingAddress.state,
     billing_country: order.shippingAddress.country || 'India',
-    billing_email: userEmail || getShiprocketConfig().email || 'orders@rakaarituals.com',
+    billing_email: userEmail || getShiprocketConfig().email || 'orders@rangethenics.com',
     billing_phone: billingPhone,
     shipping_is_billing: true,
     shipping_customer_name: '',
@@ -917,7 +917,7 @@ export const generateAWBForOrder = async (order, productsById = {}) => {
   return { shipmentId: String(shipmentId), courierId, ...awb };
 };
 
-/** Track by RAKAA channel order id — matches branded page search (order_id=RAKAA-xxx) */
+/** Track by RANGA channel order id — matches branded page search (order_id=RANGA-xxx) */
 export const trackByChannelOrderId = async (channelOrderId) => {
   const { channelId } = getShiprocketConfig();
   return trackByOrderAndChannel({
