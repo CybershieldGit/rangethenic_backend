@@ -11,7 +11,6 @@ const LoadingSpinner = ({ size = "w-4 h-4", color = "border-white" }) => (
 const getCssColorHex = (name) => {
   if (typeof document === "undefined") return null;
   const temp = document.createElement("div");
-  // Set to baseline value
   temp.style.color = "transparent";
   temp.style.color = name.trim().toLowerCase();
   
@@ -38,7 +37,7 @@ const getCssColorHex = (name) => {
   return `#${toHexVal(r)}${toHexVal(g)}${toHexVal(b)}`;
 };
 
-export default function ColorsPage() {
+export default function JewelColorsPage() {
   const [attributes, setAttributes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [colorName, setColorName] = useState("");
@@ -56,11 +55,11 @@ export default function ColorsPage() {
   const loadAttributes = async () => {
     try {
       setLoading(true);
-      const data = await fetchAttributes("color");
+      const data = await fetchAttributes("jewel_color");
       setAttributes(data);
     } catch (err) {
       console.error(err);
-      showNotification(err.message || "Failed to load colors", "error");
+      showNotification(err.message || "Failed to load jewel colors", "error");
     } finally {
       setLoading(false);
     }
@@ -70,7 +69,6 @@ export default function ColorsPage() {
     loadAttributes();
   }, []);
 
-  // Auto-fetch color name when hex code settles (debounced)
   useEffect(() => {
     if (!isModalOpen) return;
     const cleanHex = colorHex.replace("#", "");
@@ -99,14 +97,14 @@ export default function ColorsPage() {
     const value = `${name}|${colorHex}`;
     setAdding(true);
     try {
-      const created = await createAttributeAPI("color", value);
+      const created = await createAttributeAPI("jewel_color", value);
       setAttributes((prev) => [...prev, created].sort((a, b) => a.value.localeCompare(b.value)));
       setColorName("");
       setColorHex("#b89b5e");
       setIsModalOpen(false);
-      showNotification(`Color "${name}" successfully created.`);
+      showNotification(`Jewel Color "${name}" successfully created.`);
     } catch (err) {
-      showNotification(err.message || "Failed to add color", "error");
+      showNotification(err.message || "Failed to add jewel color", "error");
     } finally {
       setAdding(false);
     }
@@ -118,9 +116,9 @@ export default function ColorsPage() {
       await deleteAttributeAPI(id);
       setAttributes((prev) => prev.filter((item) => item._id !== id));
       const displayVal = val.includes("|") ? val.split("|")[0] : val;
-      showNotification(`Color "${displayVal}" removed.`);
+      showNotification(`Jewel Color "${displayVal}" removed.`);
     } catch (err) {
-      showNotification(err.message || "Failed to delete color", "error");
+      showNotification(err.message || "Failed to delete jewel color", "error");
     } finally {
       setDeletingId(null);
     }
@@ -150,15 +148,15 @@ export default function ColorsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-12 md:mb-16 px-4 sm:px-0">
         <div>
-          <span className="text-[#b89b5e] font-black tracking-[0.5em] uppercase text-[9px] md:text-[10px] block mb-2 md:mb-3">— Color Settings —</span>
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tighter text-[#2b2622] leading-none mb-2">Color Filter</h1>
-          <p className="text-[#6f6a65] text-xs max-w-md leading-relaxed opacity-60 italic">Define color palettes for your products.</p>
+          <span className="text-[#b89b5e] font-black tracking-[0.5em] uppercase text-[9px] md:text-[10px] block mb-2 md:mb-3">— Jewel Color Settings —</span>
+          <h1 className="text-4xl md:text-5xl font-bold tracking-tighter text-[#2b2622] leading-none mb-2">Jewel Color</h1>
+          <p className="text-[#6f6a65] text-xs max-w-md leading-relaxed opacity-60 italic">Define gemstone and bead colors for your jewellery.</p>
         </div>
         <button
           onClick={() => setIsModalOpen(true)}
           className="px-6 py-3.5 bg-[#2b2622] hover:bg-[#b89b5e] text-white font-black uppercase tracking-[0.2em] text-[10px] rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5 cursor-pointer shrink-0"
         >
-          Add Color +
+          Add Jewel Color +
         </button>
       </div>
 
@@ -169,7 +167,7 @@ export default function ColorsPage() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-[#fcfbf9] border-b border-[#f2eee9]">
-                  <th className="p-6 font-black text-[#6f6a65]/40 text-[9px] uppercase tracking-[0.3em]">Available Colors</th>
+                  <th className="p-6 font-black text-[#6f6a65]/40 text-[9px] uppercase tracking-[0.3em]">Available Jewel Colors</th>
                   <th className="p-6 font-black text-[#6f6a65]/40 text-[9px] uppercase tracking-[0.3em] text-right">Actions</th>
                 </tr>
               </thead>
@@ -177,7 +175,7 @@ export default function ColorsPage() {
                 {attributes.length === 0 ? (
                   <tr>
                     <td colSpan="2" className="p-16 text-center text-[#6f6a65]/40 text-xs italic">
-                      No colors available.
+                      No jewel colors available.
                     </td>
                   </tr>
                 ) : (
@@ -231,7 +229,7 @@ export default function ColorsPage() {
               </svg>
             </button>
             
-            <h3 className="text-lg font-black uppercase tracking-widest text-[#2b2622] mb-6">Add Color</h3>
+            <h3 className="text-lg font-black uppercase tracking-widest text-[#2b2622] mb-6">Add Jewel Color</h3>
             <form onSubmit={handleAdd} className="space-y-6">
               <div>
                 <label className="block text-[9px] uppercase font-black tracking-widest text-[#6f6a65] mb-2.5 ml-1">Color Name</label>
@@ -247,7 +245,7 @@ export default function ColorsPage() {
                     }
                   }} 
                   required 
-                  placeholder="e.g. Royal Blue, Crimson" 
+                  placeholder="e.g. Ruby Red, Emerald Green, Turquoise" 
                   className="w-full p-4 rounded-2xl border border-[#e8e1d9] bg-[#fcfbf9] focus:ring-2 focus:ring-[#b89b5e]/20 focus:border-[#b89b5e] outline-none text-sm transition-all text-[#2b2622] font-semibold"
                 />
               </div>
@@ -271,7 +269,7 @@ export default function ColorsPage() {
                 disabled={adding} 
                 className="w-full py-4 rounded-xl text-white bg-[#2b2622] hover:bg-[#b89b5e] font-black uppercase tracking-[0.2em] text-xs transition-all cursor-pointer flex items-center justify-center gap-2"
               >
-                {adding ? <LoadingSpinner /> : "Add Color"}
+                {adding ? <LoadingSpinner /> : "Add Jewel Color"}
               </button>
             </form>
           </div>

@@ -1,7 +1,7 @@
 {
-  "name": "Rakaarituals-backend",
+  "name": "rangethenics-backend",
   "version": "1.0.0",
-  "description": "Backend for Rakaarituals meditation & spiritual products e-commerce platform",
+  "description": "Backend for Rangethenics e-commerce platform",
   "main": "server.js",
   "type": "module",
   "scripts": {

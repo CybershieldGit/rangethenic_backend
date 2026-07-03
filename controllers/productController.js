@@ -14,7 +14,8 @@ const getProducts = async (req, res) => {
     if (req.query.keyword) {
       filter.$or = [
         { name: { $regex: req.query.keyword, $options: 'i' } },
-        { description: { $regex: req.query.keyword, $options: 'i' } },
+        { shortDescription: { $regex: req.query.keyword, $options: 'i' } },
+        { longDescription: { $regex: req.query.keyword, $options: 'i' } },
         { category: { $regex: req.query.keyword, $options: 'i' } },
       ];
     }
@@ -90,17 +91,13 @@ const getBestProducts = async (req, res) => {
   res.json(products);
 };
 
-// @desc    Fetch the single featured product
+// @desc    Fetch all featured products
 // @route   GET /api/products/featured
 // @access  Public
 const getFeaturedProduct = async (req, res) => {
   try {
-    const product = await Product.findOne({ isFeatured: true });
-    if (product) {
-      res.json(product);
-    } else {
-      res.json(null);
-    }
+    const products = await Product.find({ isFeatured: true });
+    res.json(products);
   } catch (error) {
     console.error('Error in getFeaturedProduct:', error);
     res.status(500).json({ message: error.message });
@@ -111,12 +108,9 @@ const getFeaturedProduct = async (req, res) => {
 // @route   POST /api/products
 // @access  Private/Admin
 const createProduct = async (req, res) => {
-  const { name, price, discountPercentage, description, images, image, category, subCategory, countInStock, isBestSeller, isCODAllowed, isFeatured, video, sizes, colors, fabrics, works } = req.body;
+  const { name, price, discountPercentage, shortDescription, longDescription, images, image, category, subCategory, countInStock, isBestSeller, isCODAllowed, isFeatured, video, sizes, colors, fabrics, works, metals, jewelColors } = req.body;
 
-  // If this product is being set as featured, unset all others
-  if (isFeatured === true) {
-    await Product.updateMany({}, { isFeatured: false });
-  }
+
 
   const product = new Product({
     name,
@@ -128,7 +122,8 @@ const createProduct = async (req, res) => {
     category,
     subCategory: subCategory || '',
     countInStock,
-    description,
+    shortDescription: shortDescription || '',
+    longDescription: longDescription || '',
     isBestSeller: isBestSeller !== undefined ? isBestSeller : false,
     isCODAllowed: isCODAllowed !== undefined ? isCODAllowed : true,
     isFeatured: isFeatured !== undefined ? isFeatured : false,
@@ -137,6 +132,8 @@ const createProduct = async (req, res) => {
     colors: colors || [],
     fabrics: fabrics || [],
     works: works || [],
+    metals: metals || [],
+    jewelColors: jewelColors || [],
   });
 
   const createdProduct = await product.save();
@@ -155,7 +152,7 @@ const createProduct = async (req, res) => {
 // @access  Private/Admin
 const updateProduct = async (req, res) => {
   try {
-    const { name, price, discountPercentage, description, images, image, category, subCategory, countInStock, isBestSeller, isCODAllowed, isFeatured, video, sizes, colors, fabrics, works } = req.body;
+    const { name, price, discountPercentage, shortDescription, longDescription, images, image, category, subCategory, countInStock, isBestSeller, isCODAllowed, isFeatured, video, sizes, colors, fabrics, works, metals, jewelColors } = req.body;
 
     const product = await Product.findById(req.params.id);
 
@@ -165,7 +162,12 @@ const updateProduct = async (req, res) => {
       if (discountPercentage !== undefined) {
         product.discountPercentage = discountPercentage;
       }
-      product.description = description || product.description;
+      if (shortDescription !== undefined) {
+        product.shortDescription = shortDescription;
+      }
+      if (longDescription !== undefined) {
+        product.longDescription = longDescription;
+      }
       
       // Update images array and single image field
       if (images) {
@@ -188,11 +190,7 @@ const updateProduct = async (req, res) => {
       if (video !== undefined) {
         product.video = video;
       }
-      // Single-featured enforcement: unset all others if this is being set as featured
       if (isFeatured !== undefined) {
-        if (isFeatured === true) {
-          await Product.updateMany({ _id: { $ne: product._id } }, { isFeatured: false });
-        }
         product.isFeatured = isFeatured;
       }
 
@@ -207,6 +205,12 @@ const updateProduct = async (req, res) => {
       }
       if (works !== undefined) {
         product.works = works;
+      }
+      if (metals !== undefined) {
+        product.metals = metals;
+      }
+      if (jewelColors !== undefined) {
+        product.jewelColors = jewelColors;
       }
 
       const updatedProduct = await product.save();

@@ -4,13 +4,13 @@ const getTrackingPageBase = () => {
   const url =
     process.env.SHIPROCKET_TRACKING_PAGE_URL ||
     process.env.SHIP_ROCKET_TRACKING_PAGE_URL ||
-    'https://rakaarituals.shiprocket.co/tracking';
+    'https://rangethenics.shiprocket.co/tracking';
   return url.replace(/\/$/, '');
 };
 
 export const getTrackingPageUrl = () => getTrackingPageBase();
 
-export const CHANNEL_ORDER_PREFIX = 'RAKAA';
+export const CHANNEL_ORDER_PREFIX = 'RANGA';
 
 export const getChannelOrderId = (order) => {
   if (order?.shiprocketChannelOrderId) return order.shiprocketChannelOrderId;
@@ -23,7 +23,7 @@ export const getChannelOrderId = (order) => {
 export const normalizeChannelOrderId = (input) => {
   const trimmed = String(input || '').trim().toUpperCase();
   if (!trimmed) return null;
-  if (trimmed.startsWith('RAKAA-') || trimmed.startsWith('RAKA-')) return trimmed;
+  if (trimmed.startsWith('RANGA-') || trimmed.startsWith('RANG-')) return trimmed;
   if (/^[A-F0-9]{8,24}$/.test(trimmed)) {
     return `${CHANNEL_ORDER_PREFIX}-${trimmed.slice(-12)}`;
   }
@@ -37,7 +37,7 @@ export const resolveOrderFromChannelId = async (input) => {
   const byChannel = await Order.findOne({ shiprocketChannelOrderId: channelId });
   if (byChannel) return byChannel;
 
-  const suffix = channelId.replace(/^RAKAA?-/i, '').toUpperCase();
+  const suffix = channelId.replace(/^RANGA?-/i, '').toUpperCase();
   if (!/^[A-F0-9]{12}$/.test(suffix)) return null;
 
   return Order.findOne({
@@ -50,7 +50,7 @@ export const resolveOrderFromChannelId = async (input) => {
   });
 };
 
-/** Branded Shiprocket page — https://rakaarituals.shiprocket.co/tracking?order_id=RAKAA-xxx */
+/** Branded Shiprocket page — https://rangethenics.shiprocket.co/tracking?order_id=RANGA-xxx */
 export const buildBrandedTrackingUrl = ({ orderId, awb } = {}, order = null) => {
   const base = getTrackingPageBase();
 

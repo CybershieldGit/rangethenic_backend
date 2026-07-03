@@ -203,10 +203,10 @@ export default function AdminDashboard() {
           .filter((ord) => new Date(ord.createdAt).toDateString() === dateStr)
           .reduce((sum, ord) => sum + (ord.totalPrice || 0), 0);
 
-        data.push({ 
-          label: dayStr, 
-          value: dailyRevenue, 
-          fullDate: d.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) 
+        data.push({
+          label: dayStr,
+          value: dailyRevenue,
+          fullDate: d.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })
         });
       }
       return data;
@@ -277,7 +277,7 @@ export default function AdminDashboard() {
     });
 
     const linePath = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
-    const areaPath = points.length > 0 
+    const areaPath = points.length > 0
       ? `${linePath} L ${points[points.length - 1].x} ${height - paddingBottom} L ${points[0].x} ${height - paddingBottom} Z`
       : "";
 
@@ -332,8 +332,8 @@ export default function AdminDashboard() {
       {/* Upper Title Header */}
       <header className="mb-10 flex flex-col sm:flex-row sm:items-end justify-between gap-6">
         <div>
-          <span className="text-[#b89b5e] font-black tracking-[0.5em] uppercase text-[10px] block mb-3">Temple Analytics</span>
-          <h1 className="text-5xl font-bold tracking-tighter text-[#2b2622]">Good Morning, Admin</h1>
+          <span className="text-[#b89b5e] font-black tracking-[0.5em] uppercase text-[10px] block mb-3">Store Analytics</span>
+          <h1 className="text-5xl font-bold tracking-tighter text-[#2b2622]">Welcome Admin</h1>
         </div>
 
         {/* Days Filter Pills Group & Systems Indicator */}
@@ -346,16 +346,16 @@ export default function AdminDashboard() {
             >
               <span>
                 {filterDays === "today" ? "Today" :
-                 filterDays === "yesterday" ? "Yesterday" :
-                 filterDays === "7" ? "7 Days" :
-                 filterDays === "30" ? "30 Days" : "All Time"}
+                  filterDays === "yesterday" ? "Yesterday" :
+                    filterDays === "7" ? "7 Days" :
+                      filterDays === "30" ? "30 Days" : "All Time"}
               </span>
-              <div 
+              <div
                 className="absolute right-5 top-1/2 -translate-y-1/2 text-[#b89b5e] transition-transform duration-300 pointer-events-none"
                 style={{ transform: isDropdownOpen ? "translateY(-50%) rotate(180deg)" : "translateY(-50%)" }}
               >
                 <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </div>
             </button>
@@ -376,11 +376,10 @@ export default function AdminDashboard() {
                       setFilterDays(opt.val);
                       setIsDropdownOpen(false);
                     }}
-                    className={`w-full text-left px-4 py-2.5 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all duration-300 cursor-pointer ${
-                      filterDays === opt.val
-                        ? "bg-[#2b2622] text-white shadow-md scale-[1.03]"
-                        : "text-[#6f6a65] hover:text-[#2b2622] hover:bg-white/40"
-                    }`}
+                    className={`w-full text-left px-4 py-2.5 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all duration-300 cursor-pointer ${filterDays === opt.val
+                      ? "bg-[#2b2622] text-white shadow-md scale-[1.03]"
+                      : "text-[#6f6a65] hover:text-[#2b2622] hover:bg-white/40"
+                      }`}
                   >
                     {opt.label}
                   </button>
@@ -398,10 +397,10 @@ export default function AdminDashboard() {
 
       {/* Core Dynamic Statistics Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-10">
-        <StatCard title="Sales" prefix="₹" value={stats.totalSales} subtitle="Divine Revenue" />
-        <StatCard title="Available Stock" value={stats.totalStock} subtitle="Sacred Inventory" />
-        <StatCard title="Total Orders" value={stats.totalOrders} subtitle="Ritual Journeys" />
-        <StatCard title="Active Catalog" value={stats.activeCatalog} subtitle="Sacred Offerings" />
+        <StatCard title="Sales" prefix="₹" value={stats.totalSales} subtitle="Store Revenue" />
+        <StatCard title="Available Stock" value={stats.totalStock} subtitle="Product Inventory" />
+        <StatCard title="Total Orders" value={stats.totalOrders} subtitle="Store Orders" />
+        <StatCard title="Active Catalog" value={stats.activeCatalog} subtitle="Store Catalog" />
       </div>
 
       {/* Analytics Graph & Order Status Breakdowns */}
@@ -411,7 +410,7 @@ export default function AdminDashboard() {
           <div>
             <div className="flex items-center justify-between mb-4">
               <div>
-                <p className="text-[9px] font-black uppercase tracking-[0.25em] text-[#b89b5e] mb-1">Ritual Revenue</p>
+                <p className="text-[9px] font-black uppercase tracking-[0.25em] text-[#b89b5e] mb-1">Product Revenue</p>
                 <h2 className="text-3xl font-bold tracking-tighter text-[#2b2622]">Sales Trend</h2>
               </div>
               <span className="text-[9px] font-bold text-[#6f6a65] uppercase tracking-widest bg-[#f7f6f1] px-3 py-1 rounded-full border border-[#dcd4cb]">
@@ -450,19 +449,19 @@ export default function AdminDashboard() {
                     return (
                       <g key={idx} className="opacity-40">
                         <line
-                           x1={svgParams.paddingLeft}
-                           y1={y}
-                           x2={svgParams.width - svgParams.paddingRight}
-                           y2={y}
-                           stroke="#dcd4cb"
-                           strokeWidth="1"
-                           strokeDasharray="4 6"
+                          x1={svgParams.paddingLeft}
+                          y1={y}
+                          x2={svgParams.width - svgParams.paddingRight}
+                          y2={y}
+                          stroke="#dcd4cb"
+                          strokeWidth="1"
+                          strokeDasharray="4 6"
                         />
                         <text
-                           x={svgParams.paddingLeft - 12}
-                           y={y + 4}
-                           textAnchor="end"
-                           className="text-[8px] font-black text-[#6f6a65]/70 fill-current"
+                          x={svgParams.paddingLeft - 12}
+                          y={y + 4}
+                          textAnchor="end"
+                          className="text-[8px] font-black text-[#6f6a65]/70 fill-current"
                         >
                           ₹{val >= 1000 ? `${(val / 1000).toFixed(1)}k` : val.toFixed(0)}
                         </text>

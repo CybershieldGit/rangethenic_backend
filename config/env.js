@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Always load .env from raka-backend root, regardless of process.cwd()
+// Always load .env from rangethenics-backend root, regardless of process.cwd()
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 // Node may use 127.0.0.1 for DNS (VPN/proxy); that breaks mongodb+srv SRV lookups.

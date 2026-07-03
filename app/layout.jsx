@@ -27,8 +27,8 @@ const inter = Inter({
 });
 
 export const metadata = {
-  title: "Rakaarituals Admin Panel",
-  description: "Rakaarituals Admin Panel Dashboard",
+  title: "Rangethenics Admin Panel",
+  description: "Rangethenics Admin Panel Dashboard",
 };
 
 export default function RootLayout({ children }) {
