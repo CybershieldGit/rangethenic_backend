@@ -1,6 +1,24 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 
+const addressSchema = new mongoose.Schema(
+  {
+    label: { type: String, default: '' },
+    fullName: { type: String, default: '' },
+    phone: { type: String, default: '' },
+    houseFlatNo: { type: String, default: '' },
+    streetArea: { type: String, default: '' },
+    landmark: { type: String, default: '' },
+    addressLine: { type: String, default: '' },
+    city: { type: String, default: '' },
+    state: { type: String, default: '' },
+    postalCode: { type: String, default: '' },
+    country: { type: String, default: 'India' },
+    isDefault: { type: Boolean, default: false },
+  },
+  { timestamps: true }
+);
+
 const userSchema = new mongoose.Schema(
   {
     name: {
@@ -45,6 +63,7 @@ const userSchema = new mongoose.Schema(
       postalCode: { type: String, default: '' },
       country: { type: String, default: '' },
     },
+    addresses: [addressSchema],
     wishlist: [
       {
         type: mongoose.Schema.Types.ObjectId,
