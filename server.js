@@ -31,7 +31,37 @@ nextApp.prepare().then(() => {
   // Initialize Socket.io
   initSocket(server);
 
-  app.use(cors());
+  // CORS: allow the configured frontend origin(s). Set CORS_ORIGIN in the backend
+  // .env to a comma-separated list of allowed origins, e.g.
+  //   CORS_ORIGIN=https://rangethnics.com,https://www.rangethnics.com
+  // If CORS_ORIGIN is not set, all origins are reflected (useful in development).
+  const allowedOrigins = (process.env.CORS_ORIGIN || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+  const corsOptions = {
+    origin(origin, callback) {
+      // Allow non-browser requests (curl, server-to-server) that have no Origin.
+      if (!origin) return callback(null, true);
+      if (
+        allowedOrigins.length === 0 ||
+        allowedOrigins.includes('*') ||
+        allowedOrigins.includes(origin)
+      ) {
+        return callback(null, true);
+      }
+      return callback(new Error(`Origin ${origin} not allowed by CORS`));
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  };
+
+  app.use(cors(corsOptions));
+  // Ensure preflight (OPTIONS) requests are answered with the CORS headers.
+  app.options('*', cors(corsOptions));
+
   app.use(express.json());
 
   // API Routes
