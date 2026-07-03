@@ -1,6 +1,7 @@
 import Coupon from '../models/Coupon.js';
 import Order from '../models/Order.js';
 import CouponUsage from '../models/CouponUsage.js';
+import Cart from '../models/Cart.js';
 
 export const userHasAnyActiveOrder = async (userId) => {
   const count = await Order.countDocuments({
@@ -84,8 +85,8 @@ export const linkCouponUsageToOrder = async (usageRecord, orderId) => {
   await usageRecord.save();
 };
 
-export const calculateCouponDiscount = (coupon, itemsPrice) => {
-  const subtotal = Math.max(0, Number(itemsPrice) || 0);
+export const calculateCouponDiscount = (coupon, eligiblePrice) => {
+  const subtotal = Math.max(0, Number(eligiblePrice) || 0);
   if (!coupon || subtotal <= 0) return 0;
 
   let discount = 0;
@@ -98,7 +99,33 @@ export const calculateCouponDiscount = (coupon, itemsPrice) => {
   return Math.min(Math.round(discount * 100) / 100, subtotal);
 };
 
-export const validateCouponForUser = async ({ code, userId, itemsPrice }) => {
+/**
+ * Given a coupon and a list of cart items, returns only items eligible
+ * for the discount based on applicableProducts / excludedProducts.
+ * Each item must have: { product: ObjectId|string, price: Number, quantity: Number }
+ */
+export const getEligibleItems = (coupon, cartItems) => {
+  if (!cartItems || cartItems.length === 0) return [];
+
+  const hasWhitelist = coupon.applicableProducts && coupon.applicableProducts.length > 0;
+  const hasBlacklist = coupon.excludedProducts && coupon.excludedProducts.length > 0;
+
+  if (!hasWhitelist && !hasBlacklist) return cartItems; // no restriction
+
+  return cartItems.filter((item) => {
+    const pid = (item.product?._id || item.product)?.toString();
+
+    if (hasWhitelist) {
+      return coupon.applicableProducts.some((ap) => ap.toString() === pid);
+    }
+    if (hasBlacklist) {
+      return !coupon.excludedProducts.some((ep) => ep.toString() === pid);
+    }
+    return true;
+  });
+};
+
+export const validateCouponForUser = async ({ code, userId, itemsPrice, cartItems }) => {
   if (!code?.trim()) {
     throw new Error('Coupon code is required');
   }
@@ -122,21 +149,57 @@ export const validateCouponForUser = async ({ code, userId, itemsPrice }) => {
     throw new Error('This coupon has reached its usage limit');
   }
 
-  const subtotal = Math.max(0, Number(itemsPrice) || 0);
-  if (subtotal < (coupon.minPurchase || 0)) {
+  // ── Product-level restriction check ──────────────────────────────────────
+  const hasProductRestriction =
+    (coupon.applicableProducts && coupon.applicableProducts.length > 0) ||
+    (coupon.excludedProducts && coupon.excludedProducts.length > 0);
+
+  let eligibleItemsPrice = Math.max(0, Number(itemsPrice) || 0);
+
+  if (hasProductRestriction) {
+    // Prefer caller-supplied items; fall back to fetching the user's cart
+    let items = cartItems;
+    if (!items && userId) {
+      const cart = await Cart.findOne({ user: userId }).populate('items.product');
+      if (cart && cart.items.length > 0) {
+        items = cart.items.map((ci) => ({
+          product: ci.product._id,
+          price: ci.product.price,
+          quantity: ci.quantity,
+        }));
+      }
+    }
+
+    if (items && items.length > 0) {
+      const eligibleItems = getEligibleItems(coupon, items);
+      if (eligibleItems.length === 0) {
+        throw new Error('This coupon is not applicable to the products in your cart');
+      }
+      eligibleItemsPrice = eligibleItems.reduce(
+        (sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 1),
+        0
+      );
+    }
+  }
+
+  const fullSubtotal = Math.max(0, Number(itemsPrice) || eligibleItemsPrice);
+
+  if (eligibleItemsPrice < (coupon.minPurchase || 0)) {
     throw new Error(`Minimum purchase of ₹${coupon.minPurchase} is required for this coupon`);
   }
 
   await assertCouponNotAlreadyUsed(userId, coupon.code);
   await assertFirstOrderCouponEligible(userId, coupon);
 
-  const discount = calculateCouponDiscount(coupon, subtotal);
+  // Discount is computed on the eligible subtotal; total deduction is from fullSubtotal
+  const discount = calculateCouponDiscount(coupon, eligibleItemsPrice);
 
   return {
     coupon,
     discount,
-    itemsPrice: subtotal,
-    totalAfterDiscount: Math.max(0, subtotal - discount),
+    itemsPrice: fullSubtotal,
+    eligibleItemsPrice,
+    totalAfterDiscount: Math.max(0, fullSubtotal - discount),
   };
 };
 

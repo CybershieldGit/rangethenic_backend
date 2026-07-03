@@ -276,6 +276,7 @@ const createOrder = async (req, res) => {
           code: couponCode,
           userId: req.user._id,
           itemsPrice,
+          cartItems: orderItems, // pass resolved items for product-level restriction checks
         });
         couponDiscount = couponResult.discount;
         appliedCouponCode = couponResult.coupon.code;

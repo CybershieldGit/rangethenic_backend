@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { 
   fetchCouponsAdmin, 
   createCouponAPI, 
   updateCouponAPI, 
-  deleteCouponAPI 
+  deleteCouponAPI,
+  fetchProducts
 } from "@/utils/api";
 
 const LoadingSpinner = ({ size = "w-4 h-4", color = "border-white" }) => (
@@ -55,6 +56,16 @@ const CouponRow = ({
             {coupon.usageLimit && (
               <span className="text-[8px] uppercase font-black tracking-widest text-[#6f6a65]/60 bg-[#f2eee9] px-2 py-0.5 rounded-full">
                 Used {coupon.usedCount || 0}/{coupon.usageLimit}
+              </span>
+            )}
+            {coupon.applicableProducts && coupon.applicableProducts.length > 0 && (
+              <span className="text-[8px] uppercase font-black tracking-widest text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+                {coupon.applicableProducts.length} Specific Products
+              </span>
+            )}
+            {coupon.excludedProducts && coupon.excludedProducts.length > 0 && (
+              <span className="text-[8px] uppercase font-black tracking-widest text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
+                {coupon.excludedProducts.length} Excluded Products
               </span>
             )}
           </div>
@@ -130,6 +141,7 @@ const CouponRow = ({
 
 export default function AdminCouponsPage() {
   const [coupons, setCoupons] = useState([]);
+  const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterActive, setFilterActive] = useState("all"); // "all", "active", "inactive", "expired"
@@ -137,6 +149,12 @@ export default function AdminCouponsPage() {
   const [togglingId, setTogglingId] = useState(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   
+  // Dropdown states for restrictions
+  const [appProductsDropdownOpen, setAppProductsDropdownOpen] = useState(false);
+  const [exProductsDropdownOpen, setExProductsDropdownOpen] = useState(false);
+  const appProductsRef = useRef(null);
+  const exProductsRef = useRef(null);
+
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCoupon, setEditingCoupon] = useState(null); // null means creating new
@@ -152,6 +170,8 @@ export default function AdminCouponsPage() {
     isActive: true,
     firstOrderOnly: false,
     usageLimit: "",
+    applicableProducts: [],
+    excludedProducts: [],
   });
 
   const showNotification = (message, type = "success") => {
@@ -162,8 +182,12 @@ export default function AdminCouponsPage() {
   const loadCoupons = async () => {
     try {
       setLoading(true);
-      const data = await fetchCouponsAdmin();
-      setCoupons(data || []);
+      const [couponsData, productsData] = await Promise.all([
+        fetchCouponsAdmin(),
+        fetchProducts()
+      ]);
+      setCoupons(couponsData || []);
+      setProducts(productsData?.products || productsData || []);
     } catch (err) {
       console.error(err);
       showNotification(err.message || "Failed to load coupons", "error");
@@ -174,6 +198,19 @@ export default function AdminCouponsPage() {
 
   useEffect(() => {
     loadCoupons();
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (appProductsRef.current && !appProductsRef.current.contains(e.target)) {
+        setAppProductsDropdownOpen(false);
+      }
+      if (exProductsRef.current && !exProductsRef.current.contains(e.target)) {
+        setExProductsDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const handleDelete = async (id, code) => {
@@ -212,8 +249,12 @@ export default function AdminCouponsPage() {
       isActive: true,
       firstOrderOnly: false,
       usageLimit: "",
+      applicableProducts: [],
+      excludedProducts: [],
     });
     setFormError("");
+    setAppProductsDropdownOpen(false);
+    setExProductsDropdownOpen(false);
     setIsModalOpen(true);
   };
 
@@ -229,8 +270,12 @@ export default function AdminCouponsPage() {
       isActive: coupon.isActive,
       firstOrderOnly: Boolean(coupon.firstOrderOnly),
       usageLimit: coupon.usageLimit || "",
+      applicableProducts: coupon.applicableProducts || [],
+      excludedProducts: coupon.excludedProducts || [],
     });
     setFormError("");
+    setAppProductsDropdownOpen(false);
+    setExProductsDropdownOpen(false);
     setIsModalOpen(true);
   };
 
@@ -552,6 +597,111 @@ export default function AdminCouponsPage() {
                     <label htmlFor="isActive" className="text-xs font-bold text-[#6f6a65] uppercase tracking-widest select-none cursor-pointer">
                       Activate immediately
                     </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Product Restrictions */}
+              <div className="border-t border-[#f2eee9] pt-4 mt-4 space-y-4">
+                <h4 className="text-xs font-black uppercase tracking-widest text-[#2b2622]">Product Restrictions</h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Applicable Products (Whitelist) */}
+                  <div className="relative" ref={appProductsRef}>
+                    <label className="text-[10px] uppercase tracking-widest text-[#6f6a65] font-black block mb-1">
+                      Only for Specific Products
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAppProductsDropdownOpen(!appProductsDropdownOpen);
+                        setExProductsDropdownOpen(false);
+                      }}
+                      className="w-full bg-[#f8f6f2] rounded-xl px-4 py-3 text-sm text-[#2b2622] outline-none font-bold text-left flex justify-between items-center cursor-pointer"
+                    >
+                      <span className="truncate">
+                        {formData.applicableProducts?.length > 0
+                          ? `${formData.applicableProducts.length} selected`
+                          : "All Products Eligible"}
+                      </span>
+                      <span className="text-xs text-[#b89b5e]">▼</span>
+                    </button>
+                    {appProductsDropdownOpen && (
+                      <div className="absolute left-0 right-0 mt-1 bg-white border border-[#dcd4cb] rounded-xl shadow-xl z-[9999] max-h-48 overflow-y-auto p-2 space-y-1">
+                        {products.length === 0 ? (
+                          <div className="text-xs text-[#6f6a65]/40 italic p-2">No products available</div>
+                        ) : (
+                          products.map((prod) => {
+                            const isSelected = formData.applicableProducts?.includes(prod._id);
+                            return (
+                              <label key={prod._id} className="flex items-center gap-2 px-2 py-1.5 hover:bg-[#f8f6f2] rounded-lg cursor-pointer text-xs font-bold text-[#2b2622] select-none">
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => {
+                                    const nextList = isSelected
+                                      ? formData.applicableProducts.filter(id => id !== prod._id)
+                                      : [...(formData.applicableProducts || []), prod._id];
+                                    setFormData(prev => ({ ...prev, applicableProducts: nextList }));
+                                  }}
+                                  className="w-3.5 h-3.5 accent-[#b89b5e] rounded"
+                                />
+                                <span className="truncate">{prod.name}</span>
+                              </label>
+                            );
+                          })
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Excluded Products (Blacklist) */}
+                  <div className="relative" ref={exProductsRef}>
+                    <label className="text-[10px] uppercase tracking-widest text-[#6f6a65] font-black block mb-1">
+                      Exclude Specific Products
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setExProductsDropdownOpen(!exProductsDropdownOpen);
+                        setAppProductsDropdownOpen(false);
+                      }}
+                      className="w-full bg-[#f8f6f2] rounded-xl px-4 py-3 text-sm text-[#2b2622] outline-none font-bold text-left flex justify-between items-center cursor-pointer"
+                    >
+                      <span className="truncate">
+                        {formData.excludedProducts?.length > 0
+                          ? `${formData.excludedProducts.length} excluded`
+                          : "No Exclusions"}
+                      </span>
+                      <span className="text-xs text-[#b89b5e]">▼</span>
+                    </button>
+                    {exProductsDropdownOpen && (
+                      <div className="absolute left-0 right-0 mt-1 bg-white border border-[#dcd4cb] rounded-xl shadow-xl z-[9999] max-h-48 overflow-y-auto p-2 space-y-1">
+                        {products.length === 0 ? (
+                          <div className="text-xs text-[#6f6a65]/40 italic p-2">No products available</div>
+                        ) : (
+                          products.map((prod) => {
+                            const isSelected = formData.excludedProducts?.includes(prod._id);
+                            return (
+                              <label key={prod._id} className="flex items-center gap-2 px-2 py-1.5 hover:bg-[#f8f6f2] rounded-lg cursor-pointer text-xs font-bold text-[#2b2622] select-none">
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => {
+                                    const nextList = isSelected
+                                      ? formData.excludedProducts.filter(id => id !== prod._id)
+                                      : [...(formData.excludedProducts || []), prod._id];
+                                    setFormData(prev => ({ ...prev, excludedProducts: nextList }));
+                                  }}
+                                  className="w-3.5 h-3.5 accent-[#b89b5e] rounded"
+                                />
+                                <span className="truncate">{prod.name}</span>
+                              </label>
+                            );
+                          })
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

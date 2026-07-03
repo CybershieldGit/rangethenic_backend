@@ -42,7 +42,11 @@ const getCouponsAdmin = async (req, res) => {
 // @access  Private/Admin
 const createCoupon = async (req, res) => {
   try {
-    const { code, discountType, discountValue, minPurchase, description, expiryDate, isActive, firstOrderOnly, usageLimit } = req.body;
+    const {
+      code, discountType, discountValue, minPurchase, description,
+      expiryDate, isActive, firstOrderOnly, usageLimit,
+      applicableProducts, excludedProducts,
+    } = req.body;
 
     if (!code || !code.trim()) {
       return res.status(400).json({ message: 'Coupon code is required' });
@@ -75,6 +79,8 @@ const createCoupon = async (req, res) => {
       firstOrderOnly: Boolean(firstOrderOnly),
       usageLimit: usageLimit > 0 ? usageLimit : null,
       usedCount: 0,
+      applicableProducts: Array.isArray(applicableProducts) ? applicableProducts : [],
+      excludedProducts: Array.isArray(excludedProducts) ? excludedProducts : [],
     });
 
     res.status(201).json(coupon);
@@ -95,7 +101,11 @@ const updateCoupon = async (req, res) => {
       return res.status(404).json({ message: 'Coupon not found' });
     }
 
-    const { code, discountType, discountValue, minPurchase, description, expiryDate, isActive, firstOrderOnly, usageLimit } = req.body;
+    const {
+      code, discountType, discountValue, minPurchase, description,
+      expiryDate, isActive, firstOrderOnly, usageLimit,
+      applicableProducts, excludedProducts,
+    } = req.body;
 
     if (code) {
       const uppercaseCode = code.trim().toUpperCase();
@@ -127,6 +137,8 @@ const updateCoupon = async (req, res) => {
     if (isActive !== undefined) coupon.isActive = isActive;
     if (firstOrderOnly !== undefined) coupon.firstOrderOnly = Boolean(firstOrderOnly);
     if (usageLimit !== undefined) coupon.usageLimit = usageLimit > 0 ? usageLimit : null;
+    if (applicableProducts !== undefined) coupon.applicableProducts = Array.isArray(applicableProducts) ? applicableProducts : [];
+    if (excludedProducts !== undefined) coupon.excludedProducts = Array.isArray(excludedProducts) ? excludedProducts : [];
 
     const updatedCoupon = await coupon.save();
     res.json(updatedCoupon);
@@ -160,11 +172,12 @@ const deleteCoupon = async (req, res) => {
 // @access  Private
 const validateCoupon = async (req, res) => {
   try {
-    const { code, itemsPrice } = req.body;
+    const { code, itemsPrice, cartItems } = req.body;
     const result = await validateCouponForUser({
       code,
       userId: req.user._id,
       itemsPrice,
+      cartItems, // optional; if omitted, service fetches the user's cart
     });
 
     res.json({
@@ -176,6 +189,7 @@ const validateCoupon = async (req, res) => {
       firstOrderOnly: result.coupon.firstOrderOnly,
       discount: result.discount,
       itemsPrice: result.itemsPrice,
+      eligibleItemsPrice: result.eligibleItemsPrice,
       totalAfterDiscount: result.totalAfterDiscount,
     });
   } catch (error) {
