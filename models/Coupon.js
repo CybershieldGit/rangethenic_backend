@@ -51,6 +51,20 @@ const couponSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    // If set, coupon only applies to these specific products (whitelist)
+    applicableProducts: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Product',
+      },
+    ],
+    // If set, coupon is excluded from these specific products (blacklist)
+    excludedProducts: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Product',
+      },
+    ],
   },
   {
     timestamps: true,
