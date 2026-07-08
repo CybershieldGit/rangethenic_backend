@@ -454,3 +454,28 @@ export const deleteAttributeAPI = async (id) => {
   });
 };
 
+// --- ANALYTICS API ---
+
+export const fetchDashboardAnalytics = async (filters = {}) => {
+  const params = new URLSearchParams();
+  Object.keys(filters).forEach(key => {
+    if (filters[key]) params.append(key, filters[key]);
+  });
+  return apiFetch(`/api/analytics/dashboard?${params.toString()}`);
+};
+
+export const fetchProductAnalytics = async () => {
+  return apiFetch("/api/analytics/products");
+};
+
+export const fetchAdminLogs = async () => {
+  return apiFetch("/api/analytics/activity");
+};
+
+export const logAdminActionAPI = async (action, details = "") => {
+  return apiFetch("/api/analytics/activity", {
+    method: "POST",
+    body: JSON.stringify({ action, details }),
+  });
+};
+

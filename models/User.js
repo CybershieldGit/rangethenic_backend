@@ -52,6 +52,7 @@ const userSchema = new mongoose.Schema(
       default: true,
     },
     address: {
+      label: { type: String, default: '' },
       fullName: { type: String, default: '' },
       phone: { type: String, default: '' },
       houseFlatNo: { type: String, default: '' },
@@ -89,6 +90,6 @@ userSchema.pre('save', async function (next) {
   this.password = await bcrypt.hash(this.password, salt);
 });
 
-const User = mongoose.model('User', userSchema);
+const User = mongoose.models.User || mongoose.model('User', userSchema);
 
 export default User;

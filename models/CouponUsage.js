@@ -24,6 +24,6 @@ const couponUsageSchema = new mongoose.Schema(
 // One first-order coupon redemption per user (atomic guard against double-apply / race conditions)
 couponUsageSchema.index({ user: 1, couponCode: 1 }, { unique: true });
 
-const CouponUsage = mongoose.model('CouponUsage', couponUsageSchema);
+const CouponUsage = mongoose.models.CouponUsage || mongoose.model('CouponUsage', couponUsageSchema);
 
 export default CouponUsage;
