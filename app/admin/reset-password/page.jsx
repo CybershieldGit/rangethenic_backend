@@ -13,7 +13,7 @@ const notoSerif = Noto_Serif({
 });
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5005";
-
+console.log("API_URL", API_URL);
 function Corner({ className }) {
   return (
     <span

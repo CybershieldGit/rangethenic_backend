@@ -33,6 +33,7 @@ function Corner({ className }) {
 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5005";
+console.log("API_URL", API_URL);
 
 // --- Minimalist SVG Icons ---
 const DashboardIcon = () => (
