@@ -1,6 +1,16 @@
 import { getToken } from "./auth";
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://admin.rangethnics.com";
+const getApiUrl = () => {
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+  if (typeof window !== "undefined") {
+    return window.location.origin;
+  }
+  return "https://admin.rangethnics.com";
+};
+
+export const API_URL = getApiUrl();
 // Helper for headers
 const getHeaders = () => {
   const token = getToken();
@@ -451,6 +461,31 @@ export const createAttributeAPI = async (type, value) => {
 export const deleteAttributeAPI = async (id) => {
   return apiFetch(`/api/attributes/${id}`, {
     method: "DELETE",
+  });
+};
+
+// --- ANALYTICS API ---
+
+export const fetchDashboardAnalytics = async (filters = {}) => {
+  const params = new URLSearchParams();
+  Object.keys(filters).forEach(key => {
+    if (filters[key]) params.append(key, filters[key]);
+  });
+  return apiFetch(`/api/analytics/dashboard?${params.toString()}`);
+};
+
+export const fetchProductAnalytics = async () => {
+  return apiFetch("/api/analytics/products");
+};
+
+export const fetchAdminLogs = async () => {
+  return apiFetch("/api/analytics/activity");
+};
+
+export const logAdminActionAPI = async (action, details = "") => {
+  return apiFetch("/api/analytics/activity", {
+    method: "POST",
+    body: JSON.stringify({ action, details }),
   });
 };
 

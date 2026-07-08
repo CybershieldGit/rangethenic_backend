@@ -14,6 +14,7 @@ import uploadRoutes from './routes/uploadRoutes.js';
 import couponRoutes from './routes/couponRoutes.js';
 import shippingRoutes from './routes/shippingRoutes.js';
 import attributeRoutes from './routes/attributeRoutes.js';
+import analyticsRoutes from './routes/analyticsRoutes.js';
 
 // -----------------------------------------------------------------------------
 // Serverless-safe, cached MongoDB connection.
@@ -102,6 +103,7 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/shipping', shippingRoutes);
 app.use('/api/attributes', attributeRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 app.use(errorHandler);
 

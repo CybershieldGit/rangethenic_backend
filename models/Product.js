@@ -167,6 +167,6 @@ productSchema.index({ name: 'text', shortDescription: 'text', longDescription: '
 productSchema.index({ isBestSeller: 1 });
 productSchema.index({ isFeatured: 1 });
 
-const Product = mongoose.model('Product', productSchema);
+const Product = mongoose.models.Product || mongoose.model('Product', productSchema);
 
 export default Product;

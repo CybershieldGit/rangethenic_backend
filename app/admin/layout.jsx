@@ -32,7 +32,17 @@ function Corner({ className }) {
 }
 
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://admin.rangethnics.com";
+const getApiUrl = () => {
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+  if (typeof window !== "undefined") {
+    return window.location.origin;
+  }
+  return "https://admin.rangethnics.com";
+};
+
+const API_URL = getApiUrl();
 
 // --- Minimalist SVG Icons ---
 const DashboardIcon = () => (
