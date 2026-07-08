@@ -12,9 +12,6 @@ const notoSerif = Noto_Serif({
   variable: "--font-noto-serif",
 });
 
-<<<<<<< HEAD
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5005";
-=======
 const getApiUrl = () => {
   if (process.env.NEXT_PUBLIC_API_URL) {
     return process.env.NEXT_PUBLIC_API_URL;
@@ -26,8 +23,6 @@ const getApiUrl = () => {
 };
 
 const API_URL = getApiUrl();
-
->>>>>>> 64b5b54 (admin pannel123)
 function Corner({ className }) {
   return (
     <span
