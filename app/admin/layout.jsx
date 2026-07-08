@@ -39,7 +39,7 @@ const getApiUrl = () => {
   if (typeof window !== "undefined") {
     return window.location.origin;
   }
-  return "http://localhost:5005";
+  return "https://admin.rangethnics.com";
 };
 
 const API_URL = getApiUrl();
