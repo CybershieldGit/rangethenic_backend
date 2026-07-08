@@ -27,4 +27,4 @@ jobs:
 
             npm run build
 
-            pm2 restart rangethenics-backend --update-env
+            pm2 restart rangethnics-backend --update-env
