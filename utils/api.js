@@ -1,7 +1,7 @@
 import { getToken } from "./auth";
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5005";
-
+console.log("API_URL", API_URL);
 // Helper for headers
 const getHeaders = () => {
   const token = getToken();
