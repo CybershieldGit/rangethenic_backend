@@ -3,27 +3,28 @@ name: Deploy to VPS
 on:
   push:
     branches:
-    - main
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
-  steps:
-    - name: Deploy via SSH
-      uses: appleboy/ssh-action@master
-      with:
-        host: ${{ secrets.VPS_HOST }}
-        username: ${{ secrets.VPS_USER }}
-        key: ${{ secrets.VPS_SSH_KEY }}
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
 
-        script: |
-          cd ${{ secrets.VPS_BACKEND_PATH }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
 
-          git pull origin main
+          script: |
+            cd ${{ secrets.VPS_BACKEND_PATH }}
 
-          npm install
+            git pull origin main
 
-          npm run build
+            npm install
 
-          pm2 restart rangethenics-backend
+            npm run build
+
+            pm2 restart rangethenics-backend --update-env
