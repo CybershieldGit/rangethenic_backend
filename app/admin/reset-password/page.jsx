@@ -12,7 +12,7 @@ const notoSerif = Noto_Serif({
   variable: "--font-noto-serif",
 });
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5005";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://admin.rangethnics.com";
 function Corner({ className }) {
   return (
     <span

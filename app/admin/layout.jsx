@@ -32,7 +32,7 @@ function Corner({ className }) {
 }
 
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5005";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://admin.rangethnics.com";
 
 // --- Minimalist SVG Icons ---
 const DashboardIcon = () => (
