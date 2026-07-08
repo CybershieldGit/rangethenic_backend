@@ -1,6 +1,21 @@
 import { getToken } from "./auth";
 
+<<<<<<< HEAD
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5005";
+=======
+const getApiUrl = () => {
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+  if (typeof window !== "undefined") {
+    return window.location.origin;
+  }
+  return "http://localhost:5005";
+};
+
+export const API_URL = getApiUrl();
+
+>>>>>>> 64b5b54 (admin pannel123)
 // Helper for headers
 const getHeaders = () => {
   const token = getToken();
