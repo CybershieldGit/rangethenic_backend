@@ -1,8 +1,25 @@
 import User from '../models/User.js';
 import OTP from '../models/OTP.js';
-import generateToken from '../utils/generateToken.js';
+import jwt from 'jsonwebtoken';
+import RefreshToken from '../models/RefreshToken.js';
+import { generateAccessToken, generateRefreshToken, sendRefreshTokenCookie } from '../utils/tokenUtils.js';
 import { generateResetToken, verifyResetToken } from '../utils/generateResetToken.js';
 import { sendOtpEmail } from '../utils/sendEmail.js';
+
+const sendAuthResponse = async (user, res, statusCode = 200, extraData = {}) => {
+  const accessToken = generateAccessToken(user._id);
+  const refreshToken = await generateRefreshToken(user._id);
+  sendRefreshTokenCookie(res, refreshToken);
+
+  res.status(statusCode).json({
+    _id: user._id,
+    name: user.name,
+    email: user.email,
+    isAdmin: user.isAdmin,
+    token: accessToken,
+    ...extraData,
+  });
+};
 import {
   saveSignupOtp,
   saveResetOtp,
@@ -86,13 +103,7 @@ const verifySignupOtp = async (req, res, next) => {
 
     await deleteOtp(record);
 
-    res.status(201).json({
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      isAdmin: user.isAdmin,
-      token: generateToken(user._id),
-    });
+    await sendAuthResponse(user, res, 201);
   } catch (error) {
     if (error.statusCode) {
       res.status(error.statusCode);
@@ -175,13 +186,7 @@ const authUser = async (req, res, next) => {
     }
 
     if (user && (await user.matchPassword(password))) {
-      res.json({
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        isAdmin: user.isAdmin,
-        token: generateToken(user._id),
-      });
+      await sendAuthResponse(user, res, 200);
     } else {
       res.status(401);
       throw new Error('Invalid email or password');
@@ -229,13 +234,7 @@ const adminRegister = async (req, res, next) => {
       isVerified: true,
     });
 
-    res.status(201).json({
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      isAdmin: user.isAdmin,
-      token: generateToken(user._id),
-    });
+    await sendAuthResponse(user, res, 201);
   } catch (error) {
     next(error);
   }
@@ -256,13 +255,7 @@ const adminLogin = async (req, res, next) => {
         throw new Error('This account does not have admin privileges');
       }
 
-      res.json({
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        isAdmin: user.isAdmin,
-        token: generateToken(user._id),
-      });
+      await sendAuthResponse(user, res, 200);
     } else {
       res.status(401);
       throw new Error('Invalid email or password');
@@ -388,14 +381,63 @@ const resetPassword = async (req, res, next) => {
     user.password = password;
     await user.save();
 
-    res.json({
-      message: 'Password reset successfully',
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      isAdmin: user.isAdmin,
-      token: generateToken(user._id),
+    await sendAuthResponse(user, res, 200, { message: 'Password reset successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Refresh access token
+// @route   POST /api/auth/refresh
+// @access  Public
+const refreshAccessToken = async (req, res, next) => {
+  try {
+    const refreshToken = req.cookies.refreshToken;
+
+    if (!refreshToken) {
+      res.status(401);
+      throw new Error('Not authorized, no refresh token');
+    }
+
+    let decoded;
+    try {
+      decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
+    } catch (err) {
+      res.status(401);
+      throw new Error('Not authorized, token expired or invalid');
+    }
+
+    const tokenExists = await RefreshToken.findOne({ token: refreshToken });
+    if (!tokenExists) {
+      res.status(401);
+      throw new Error('Not authorized, token not recognized');
+    }
+
+    const newAccessToken = generateAccessToken(decoded.id);
+    res.json({ token: newAccessToken });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Logout user & clear cookie
+// @route   POST /api/auth/logout
+// @access  Public
+const logoutUser = async (req, res, next) => {
+  try {
+    const refreshToken = req.cookies.refreshToken;
+
+    if (refreshToken) {
+      await RefreshToken.deleteOne({ token: refreshToken });
+    }
+
+    res.clearCookie('refreshToken', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
     });
+
+    res.json({ message: 'Logged out successfully' });
   } catch (error) {
     next(error);
   }
@@ -411,4 +453,6 @@ export {
   forgotPassword,
   verifyResetOtp,
   resetPassword,
+  refreshAccessToken,
+  logoutUser,
 };

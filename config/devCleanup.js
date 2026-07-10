@@ -13,8 +13,16 @@ const projectRoot = path.resolve(__dirname, '..');
  * already running." This proactively kills any such orphaned worker for THIS
  * project before we prepare a fresh one.
  */
-export function killOrphanedDevWorkers() {
-  if (process.platform !== 'win32') return;
+export function killOrphanedDevWorkers(port = 3000) {
+  if (process.platform !== 'win32') {
+    try {
+      // Find PID using target port and terminate it to free it up
+      execSync(`lsof -t -i :${port} | xargs kill -9`, { stdio: 'ignore' });
+    } catch {
+      // Ignore if no process is running on the port
+    }
+    return;
+  }
 
   try {
     const psCommand = [

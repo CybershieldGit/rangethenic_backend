@@ -97,7 +97,7 @@ function ResetPasswordForm() {
 
       setSuccess("Your password has been successfully updated.");
       setTimeout(() => {
-        router.push("/admin");
+        router.push("/");
       }, 3000);
     } catch (err) {
       setError(err.message || "Something went wrong.");
@@ -225,7 +225,7 @@ function ResetPasswordForm() {
           )}
 
           <p className="mt-auto pt-6 text-center">
-            <Link href="/admin" className="font-sans text-[16px] font-bold text-[#420001] hover:underline">
+            <Link href="/" className="font-sans text-[16px] font-bold text-[#420001] hover:underline">
               Back to Login
             </Link>
           </p>
