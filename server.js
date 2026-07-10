@@ -16,14 +16,15 @@ import { killOrphanedDevWorkers } from './config/devCleanup.js';
 // -----------------------------------------------------------------------------
 
 const dev = process.env.NODE_ENV !== 'production';
+const PORT = parseInt(process.env.PORT, 10) || 5005;
 
 // In dev, clear any Next.js dev worker orphaned by a previous nodemon restart
 // before preparing a new one (prevents "Another next dev server is already running").
 if (dev) {
-  killOrphanedDevWorkers();
+  killOrphanedDevWorkers(PORT);
 }
 
-const nextApp = next({ dev });
+const nextApp = next({ dev, hostname: 'localhost', port: PORT });
 const handle = nextApp.getRequestHandler();
 
 let httpServer;
@@ -65,7 +66,6 @@ nextApp
     // Let Next.js handle everything that isn't an Express API route.
     app.all('*', (req, res) => handle(req, res));
 
-    const PORT = process.env.PORT || 5005;
     httpServer.listen(PORT, () => {
       console.log(
         `Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`,

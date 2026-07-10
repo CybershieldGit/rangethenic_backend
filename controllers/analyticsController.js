@@ -198,6 +198,18 @@ export const getDashboardAnalytics = async (req, res) => {
     const trendData = [];
     const startDateQuery = req.query.startDate;
     const endDateQuery = req.query.endDate;
+    const categoryQuery = req.query.category || 'all';
+    const productQuery = req.query.product || 'all';
+
+    let trendKeys = [];
+    if (categoryQuery === 'all') {
+      trendKeys = [...new Set(products.map(p => p.category).filter(Boolean))];
+    } else if (productQuery === 'all') {
+      trendKeys = products.filter(p => p.category === categoryQuery).map(p => p.name);
+    } else {
+      const selectedProd = products.find(p => p._id.toString() === productQuery);
+      trendKeys = selectedProd ? [selectedProd.name] : [];
+    }
 
     if (startDateQuery && endDateQuery) {
       const start = new Date(startDateQuery);
@@ -214,14 +226,26 @@ export const getDashboardAnalytics = async (req, res) => {
           const blockEnd = new Date(start);
           blockEnd.setHours(h + 4, 0, 0, 0);
 
-          const val = filteredOrders
-            .filter(ord => {
-              const d = new Date(ord.createdAt);
-              return d >= blockStart && d < blockEnd;
-            })
-            .reduce((sum, ord) => sum + getOrderMatchingRevenue(ord, req.query.category, req.query.product), 0);
+          const timeOrders = filteredOrders.filter(ord => {
+            const d = new Date(ord.createdAt);
+            return d >= blockStart && d < blockEnd;
+          });
 
-          trendData.push({ label: labels[idx], value: val });
+          const val = timeOrders.reduce((sum, ord) => sum + getOrderMatchingRevenue(ord, categoryQuery, productQuery), 0);
+
+          const values = {};
+          trendKeys.forEach(key => {
+            if (categoryQuery === 'all') {
+              values[key] = timeOrders.reduce((sum, ord) => sum + getOrderMatchingRevenue(ord, key, 'all'), 0);
+            } else if (productQuery === 'all') {
+              const pId = products.find(p => p.name === key)?._id.toString();
+              values[key] = timeOrders.reduce((sum, ord) => sum + getOrderMatchingRevenue(ord, categoryQuery, pId), 0);
+            } else {
+              values[key] = val;
+            }
+          });
+
+          trendData.push({ label: labels[idx], value: val, values });
         });
       } else {
         for (let i = diffDays - 1; i >= 0; i--) {
@@ -230,28 +254,65 @@ export const getDashboardAnalytics = async (req, res) => {
           const label = d.toLocaleDateString("en-US", { day: "numeric", month: "short" });
           const dateStr = d.toDateString();
 
-          const val = filteredOrders
-            .filter(ord => new Date(ord.createdAt).toDateString() === dateStr)
-            .reduce((sum, ord) => sum + getOrderMatchingRevenue(ord, req.query.category, req.query.product), 0);
+          const timeOrders = filteredOrders.filter(ord => new Date(ord.createdAt).toDateString() === dateStr);
 
-          trendData.push({ label, value: val });
+          const val = timeOrders.reduce((sum, ord) => sum + getOrderMatchingRevenue(ord, categoryQuery, productQuery), 0);
+
+          const values = {};
+          trendKeys.forEach(key => {
+            if (categoryQuery === 'all') {
+              values[key] = timeOrders.reduce((sum, ord) => sum + getOrderMatchingRevenue(ord, key, 'all'), 0);
+            } else if (productQuery === 'all') {
+              const pId = products.find(p => p.name === key)?._id.toString();
+              values[key] = timeOrders.reduce((sum, ord) => sum + getOrderMatchingRevenue(ord, categoryQuery, pId), 0);
+            } else {
+              values[key] = val;
+            }
+          });
+
+          trendData.push({ label, value: val, values });
         }
       }
     } else {
+      const monthsToShow = [];
+      const today = new Date();
+      for (let i = 5; i >= 0; i--) {
+        const temp = new Date(today.getFullYear(), today.getMonth() - i, 1);
+        const label = temp.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+        monthsToShow.push(label);
+      }
+
       const monthsMap = {};
+      monthsToShow.forEach(label => {
+        monthsMap[label] = [];
+      });
+
       filteredOrders.forEach(ord => {
         const d = new Date(ord.createdAt);
         const label = d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
-        monthsMap[label] = (monthsMap[label] || 0) + getOrderMatchingRevenue(ord, req.query.category, req.query.product);
+        if (monthsMap[label] !== undefined) {
+          monthsMap[label].push(ord);
+        }
       });
 
-      Object.keys(monthsMap).forEach(label => {
-        trendData.push({ label, value: monthsMap[label] });
-      });
+      monthsToShow.forEach(label => {
+        const timeOrders = monthsMap[label] || [];
+        const val = timeOrders.reduce((sum, ord) => sum + getOrderMatchingRevenue(ord, categoryQuery, productQuery), 0);
 
-      if (trendData.length === 0) {
-        trendData.push({ label: new Date().toLocaleDateString("en-US", { month: "short" }), value: 0 });
-      }
+        const values = {};
+        trendKeys.forEach(key => {
+          if (categoryQuery === 'all') {
+            values[key] = timeOrders.reduce((sum, ord) => sum + getOrderMatchingRevenue(ord, key, 'all'), 0);
+          } else if (productQuery === 'all') {
+            const pId = products.find(p => p.name === key)?._id.toString();
+            values[key] = timeOrders.reduce((sum, ord) => sum + getOrderMatchingRevenue(ord, categoryQuery, pId), 0);
+          } else {
+            values[key] = val;
+          }
+        });
+
+        trendData.push({ label, value: val, values });
+      });
     }
 
     // --- AI INSIGHTS ENGINE ---
@@ -309,6 +370,7 @@ export const getDashboardAnalytics = async (req, res) => {
       categories: categoryAnalyticsList,
       traffic: trafficSources,
       trend: trendData,
+      trendKeys,
       insights: aiInsights,
     });
   } catch (error) {

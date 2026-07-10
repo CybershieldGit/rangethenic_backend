@@ -1,6 +1,11 @@
 import './config/env.js';
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import mongoSanitize from 'express-mongo-sanitize';
+import xss from 'xss-clean';
 import mongoose from 'mongoose';
 import { errorHandler } from './middleware/errorMiddleware.js';
 
@@ -76,9 +81,43 @@ const corsOptions = {
 
 const app = express();
 
+app.use(helmet({
+  contentSecurityPolicy: false, // Avoid blocking Next.js dashboard scripts/styles
+}));
+
+// Rate limiting
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+  message: { message: 'Too many requests from this IP, please try again after 15 minutes' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const authLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 30,
+  message: { message: 'Too many authentication attempts, please try again after 5 minutes' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use('/api', apiLimiter);
+app.use('/api/auth', authLimiter);
+
+app.disable('x-powered-by');
+
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
-app.use(express.json());
+app.use(express.json({ limit: '10kb' }));
+app.use(express.urlencoded({ extended: true, limit: '10kb' }));
+app.use(cookieParser());
+
+// Data sanitization against NoSQL query injection
+app.use(mongoSanitize());
+
+// Data sanitization against XSS
+app.use(xss());
 
 // Make sure the database is connected before handling any API request. This is
 // required for serverless cold starts and is a cheap no-op once connected.

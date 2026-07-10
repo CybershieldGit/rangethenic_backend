@@ -19,7 +19,10 @@
     "cors": "^2.8.6",
     "dotenv": "^16.6.1",
     "express": "^4.22.1",
+    "express-mongo-sanitize": "^2.2.0",
+    "express-rate-limit": "^8.5.2",
     "framer-motion": "^12.42.2",
+    "helmet": "^8.2.0",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^1.23.0",
     "mongoose": "^8.23.0",
@@ -31,7 +34,8 @@
     "react-colorful": "^5.7.0",
     "react-dom": "^19.2.7",
     "socket.io": "^4.8.3",
-    "socket.io-client": "^4.8.3"
+    "socket.io-client": "^4.8.3",
+    "xss-clean": "^0.1.4"
   },
   "devDependencies": {
     "autoprefixer": "^10.5.2",

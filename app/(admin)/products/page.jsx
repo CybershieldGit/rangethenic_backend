@@ -74,7 +74,7 @@ const ProductRow = ({ product, onToggleBestseller, onToggleFeatured, isToggling,
     <td className="p-8">
       <div className="flex items-center gap-8">
         <Link 
-          href={`/admin/edit-product/${product._id}`}
+          href={`/edit-product/${product._id}`}
           className="text-[#2b2622]/40 hover:text-[#b89b5e] font-black text-[10px] tracking-widest uppercase transition-all flex items-center gap-2 group/edit cursor-pointer"
         >
           <span className="w-0 group-hover/edit:w-2 h-[1px] bg-[#b89b5e] transition-all overflow-hidden"></span>
@@ -268,7 +268,7 @@ export default function AdminProductsPage() {
           <p className="text-[#6f6a65] text-xs md:text-sm max-w-lg leading-relaxed opacity-60 italic">Manage your product catalog. Every change here is reflected across the entire store.</p>
         </div>
         <Link 
-          href="/admin/create-product"
+          href="/create-product"
           className="bg-[#2b2622] text-white w-full xl:w-auto text-center px-6 py-4 md:px-10 md:py-5 rounded-[20px] md:rounded-[28px] font-black text-[10px] md:text-xs uppercase tracking-[0.2em] hover:bg-[#b89b5e] transition-all shadow-[0_20px_40px_rgba(43,38,34,0.15)] hover:-translate-y-2 hover:shadow-[0_25px_50px_rgba(184,155,94,0.25)] active:scale-95 group"
         >
           <span className="flex items-center justify-center xl:justify-start gap-3">

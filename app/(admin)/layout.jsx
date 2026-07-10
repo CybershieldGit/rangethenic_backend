@@ -246,10 +246,10 @@ export default function AdminLayout({ children }) {
   const [jewelleryOpen, setJewelleryOpen] = useState(false);
 
   useEffect(() => {
-    if (["/admin/sizes", "/admin/fabrics", "/admin/works", "/admin/colors"].some(p => pathname === p)) {
+    if (["/sizes", "/fabrics", "/works", "/colors"].some(p => pathname === p)) {
       setClothingOpen(true);
     }
-    if (["/admin/metals", "/admin/jewel-colors"].some(p => pathname === p)) {
+    if (["/metals", "/jewel-colors"].some(p => pathname === p)) {
       setJewelleryOpen(true);
     }
   }, [pathname]);
@@ -383,7 +383,7 @@ export default function AdminLayout({ children }) {
                         {!isAdminRegister && (
                           <div className="mt-2 text-right">
                             <Link
-                              href="/admin/reset-password"
+                              href="/reset-password"
                               className="font-sans text-[14px] font-medium text-[#420001] hover:underline"
                             >
                               Forgot Password?
@@ -545,9 +545,9 @@ export default function AdminLayout({ children }) {
           <div>
             <p className="text-[9px] uppercase tracking-[0.2em] font-black text-[#b89b5e] mb-4">Management</p>
             <nav className="flex flex-col gap-1.5">
-              <NavLink href="/admin" icon={<DashboardIcon />}>Dashboard</NavLink>
-              <NavLink href="/admin/products" icon={<ProductsIcon />}>Products</NavLink>
-              <NavLink href="/admin/categories" icon={<CategoriesIcon />}>Categories</NavLink>
+              <NavLink href="/" icon={<DashboardIcon />}>Dashboard</NavLink>
+              <NavLink href="/products" icon={<ProductsIcon />}>Products</NavLink>
+              <NavLink href="/categories" icon={<CategoriesIcon />}>Categories</NavLink>
               
               <NavDropdown
                 label="Clothing"
@@ -555,10 +555,10 @@ export default function AdminLayout({ children }) {
                 isOpen={clothingOpen}
                 setIsOpen={setClothingOpen}
               >
-                <NavLink href="/admin/sizes" icon={<SizeIcon />}>Size</NavLink>
-                <NavLink href="/admin/colors" icon={<ColorIcon />}>Color</NavLink>
-                <NavLink href="/admin/fabrics" icon={<FabricIcon />}>Fabric</NavLink>
-                <NavLink href="/admin/works" icon={<WorkIcon />}>Work</NavLink>
+                <NavLink href="/sizes" icon={<SizeIcon />}>Size</NavLink>
+                <NavLink href="/colors" icon={<ColorIcon />}>Color</NavLink>
+                <NavLink href="/fabrics" icon={<FabricIcon />}>Fabric</NavLink>
+                <NavLink href="/works" icon={<WorkIcon />}>Work</NavLink>
               </NavDropdown>
 
               <NavDropdown
@@ -567,12 +567,12 @@ export default function AdminLayout({ children }) {
                 isOpen={jewelleryOpen}
                 setIsOpen={setJewelleryOpen}
               >
-                <NavLink href="/admin/metals" icon={<MetalIcon />}>Metal</NavLink>
-                <NavLink href="/admin/jewel-colors" icon={<ColorIcon />}>Color</NavLink>
+                <NavLink href="/metals" icon={<MetalIcon />}>Metal</NavLink>
+                <NavLink href="/jewel-colors" icon={<ColorIcon />}>Color</NavLink>
               </NavDropdown>
 
-              <NavLink href="/admin/orders" icon={<OrdersIcon />}>Orders</NavLink>
-              <NavLink href="/admin/coupons" icon={<CouponsIcon />}>Coupons</NavLink>
+              <NavLink href="/orders" icon={<OrdersIcon />}>Orders</NavLink>
+              <NavLink href="/coupons" icon={<CouponsIcon />}>Coupons</NavLink>
             </nav>
           </div>
         </div>
