@@ -107,6 +107,10 @@ const productSchema = new mongoose.Schema(
       required: true,
       default: false,
     },
+    occasion: {
+      type: String,
+      default: '',
+    },
     video: {
       type: String,
       default: '',

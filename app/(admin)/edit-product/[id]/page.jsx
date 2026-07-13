@@ -41,6 +41,7 @@ export default function EditProductPage({ params }) {
     works: [],
     metals: [],
     jewelColors: [],
+    occasion: "",
   });
   const [loading, setLoading] = useState(true);
   const [submitLoading, setSubmitLoading] = useState(false);
@@ -58,6 +59,10 @@ export default function EditProductPage({ params }) {
   // Subcategory state
   const [subDropdownOpen, setSubDropdownOpen] = useState(false);
   const subRef = useRef(null);
+
+  // Occasion state
+  const [occasionDropdownOpen, setOccasionDropdownOpen] = useState(false);
+  const occasionRef = useRef(null);
 
   // Dropdown states & refs
   const [sizeDropdownOpen, setSizeDropdownOpen] = useState(false);
@@ -91,6 +96,9 @@ export default function EditProductPage({ params }) {
       }
       if (subRef.current && !subRef.current.contains(e.target)) {
         setSubDropdownOpen(false);
+      }
+      if (occasionRef.current && !occasionRef.current.contains(e.target)) {
+        setOccasionDropdownOpen(false);
       }
       if (sizeRef.current && !sizeRef.current.contains(e.target)) {
         setSizeDropdownOpen(false);
@@ -146,6 +154,7 @@ export default function EditProductPage({ params }) {
           works: product.works || [],
           metals: product.metals || [],
           jewelColors: product.jewelColors || [],
+          occasion: product.occasion || "",
         });
         setCategories(cats);
         setVideoUrl(product.video || "");
@@ -512,6 +521,59 @@ export default function EditProductPage({ params }) {
                 </div>
               </div>
             )}
+
+            {/* Occasion */}
+            <div>
+              <label className="block text-[9px] uppercase font-black tracking-widest text-[#6f6a65] mb-2 ml-1">
+                Occasion <span className="text-[#b89b5e] normal-case font-bold">(optional)</span>
+              </label>
+              <div className="relative" ref={occasionRef}>
+                <button type="button"
+                  onClick={() => setOccasionDropdownOpen(!occasionDropdownOpen)}
+                  className={`w-full p-3.5 rounded-2xl border bg-[#fcfbf9] outline-none text-sm transition-all text-left font-semibold cursor-pointer flex items-center justify-between ${
+                    occasionDropdownOpen ? 'border-[#b89b5e] ring-2 ring-[#b89b5e]/20' : 'border-[#e8e1d9]'
+                  }`}
+                >
+                  <span className={formData.occasion ? 'text-[#2b2622]' : 'text-[#6f6a65]/30 italic'}>
+                    {formData.occasion || 'Select an occasion...'}
+                  </span>
+                  <svg className={`w-4 h-4 text-[#6f6a65]/40 transition-transform duration-200 ${occasionDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                  </svg>
+                </button>
+
+                {occasionDropdownOpen && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-[#e8e1d9] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.08)] z-50 overflow-hidden max-h-56 overflow-y-auto">
+                    {formData.occasion && (
+                      <button type="button"
+                        onClick={() => { setFormData((prev) => ({ ...prev, occasion: "" })); setOccasionDropdownOpen(false); }}
+                        className="w-full text-left px-5 py-3 text-sm font-semibold text-[#6f6a65]/60 italic hover:bg-[#fcfbf9] transition-all"
+                      >
+                        Clear selection
+                      </button>
+                    )}
+                    {["Evening Glamour", "Heritage Trousseau", "Celebration Looks", "Festive Edit"].map((occ) => (
+                      <button key={occ} type="button"
+                        onClick={() => {
+                          setFormData((prev) => ({ ...prev, occasion: occ }));
+                          setOccasionDropdownOpen(false);
+                        }}
+                        className={`w-full text-left px-5 py-3 text-sm font-semibold transition-all flex items-center justify-between ${
+                          formData.occasion === occ ? 'bg-[#b89b5e]/10 text-[#b89b5e]' : 'text-[#2b2622] hover:bg-[#fcfbf9]'
+                        }`}
+                      >
+                        <span>{occ}</span>
+                        {formData.occasion === occ && (
+                          <svg className="w-4 h-4 text-[#b89b5e]" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                          </svg>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
 

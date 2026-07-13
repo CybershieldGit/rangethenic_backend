@@ -24,6 +24,10 @@ const getProducts = async (req, res) => {
       filter.category = { $regex: req.query.category, $options: 'i' };
     }
 
+    if (req.query.occasion) {
+      filter.occasion = req.query.occasion;
+    }
+
     const count = await Product.countDocuments(filter);
     const products = await Product.find(filter)
       .limit(pageSize)
@@ -108,7 +112,7 @@ const getFeaturedProduct = async (req, res) => {
 // @route   POST /api/products
 // @access  Private/Admin
 const createProduct = async (req, res) => {
-  const { name, price, discountPercentage, shortDescription, longDescription, images, image, category, subCategory, countInStock, isBestSeller, isCODAllowed, isFeatured, video, sizes, colors, fabrics, works, metals, jewelColors } = req.body;
+  const { name, price, discountPercentage, shortDescription, longDescription, images, image, category, subCategory, countInStock, isBestSeller, isCODAllowed, isFeatured, video, sizes, colors, fabrics, works, metals, jewelColors, occasion } = req.body;
 
 
 
@@ -134,6 +138,7 @@ const createProduct = async (req, res) => {
     works: works || [],
     metals: metals || [],
     jewelColors: jewelColors || [],
+    occasion: occasion || '',
   });
 
   const createdProduct = await product.save();
@@ -152,7 +157,7 @@ const createProduct = async (req, res) => {
 // @access  Private/Admin
 const updateProduct = async (req, res) => {
   try {
-    const { name, price, discountPercentage, shortDescription, longDescription, images, image, category, subCategory, countInStock, isBestSeller, isCODAllowed, isFeatured, video, sizes, colors, fabrics, works, metals, jewelColors } = req.body;
+    const { name, price, discountPercentage, shortDescription, longDescription, images, image, category, subCategory, countInStock, isBestSeller, isCODAllowed, isFeatured, video, sizes, colors, fabrics, works, metals, jewelColors, occasion } = req.body;
 
     const product = await Product.findById(req.params.id);
 
@@ -211,6 +216,9 @@ const updateProduct = async (req, res) => {
       }
       if (jewelColors !== undefined) {
         product.jewelColors = jewelColors;
+      }
+      if (occasion !== undefined) {
+        product.occasion = occasion;
       }
 
       const updatedProduct = await product.save();
