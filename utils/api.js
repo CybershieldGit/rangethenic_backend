@@ -341,6 +341,24 @@ export const uploadVideo = async (fileFormData) => {
   return data;
 };
 
+// --- GALLERY VIDEOS API ---
+export const fetchGalleryVideos = async () => {
+  return apiFetch("/api/gallery-videos");
+};
+
+export const createGalleryVideo = async (videoData) => {
+  return apiFetch("/api/gallery-videos", {
+    method: "POST",
+    body: JSON.stringify(videoData),
+  });
+};
+
+export const deleteGalleryVideo = async (id) => {
+  return apiFetch(`/api/gallery-videos/${id}`, {
+    method: "DELETE",
+  });
+};
+
 // --- CATEGORIES API ---
 
 // Distinct categories aggregated from products (name, count, image) — used for storefront-style views

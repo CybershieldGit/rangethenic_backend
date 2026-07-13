@@ -20,6 +20,7 @@ import couponRoutes from './routes/couponRoutes.js';
 import shippingRoutes from './routes/shippingRoutes.js';
 import attributeRoutes from './routes/attributeRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
+import galleryVideoRoutes from './routes/galleryVideoRoutes.js';
 
 // -----------------------------------------------------------------------------
 // Serverless-safe, cached MongoDB connection.
@@ -143,6 +144,7 @@ app.use('/api/coupons', couponRoutes);
 app.use('/api/shipping', shippingRoutes);
 app.use('/api/attributes', attributeRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/gallery-videos', galleryVideoRoutes);
 
 app.use(errorHandler);
 

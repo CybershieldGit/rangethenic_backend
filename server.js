@@ -1,3 +1,4 @@
+// Force nodemon restart to load modified app.js
 import './config/env.js';
 import http from 'http';
 import next from 'next';
