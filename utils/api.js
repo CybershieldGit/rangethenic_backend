@@ -77,8 +77,17 @@ const apiFetch = async (endpoint, options = {}) => {
   }
 };
 
-export const fetchProducts = async () => {
-  return apiFetch("/api/products");
+export const fetchProducts = async (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.keyword) query.append("keyword", params.keyword);
+  if (params.pageNumber) query.append("pageNumber", params.pageNumber);
+  if (params.pageSize) query.append("pageSize", params.pageSize);
+  if (params.category) query.append("category", params.category);
+  if (params.subCategory) query.append("subCategory", params.subCategory);
+  if (params.isBestseller) query.append("isBestseller", params.isBestseller);
+
+  const queryString = query.toString();
+  return apiFetch(`/api/products${queryString ? `?${queryString}` : ""}`);
 };
 
 export const searchProducts = async (keyword = "") => {
@@ -190,8 +199,15 @@ export const getMyOrders = async () => {
   return apiFetch("/api/orders/myorders");
 };
 
-export const getAllOrders = async () => {
-  return apiFetch("/api/orders");
+export const getAllOrders = async (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.keyword) query.append("keyword", params.keyword);
+  if (params.pageNumber) query.append("pageNumber", params.pageNumber);
+  if (params.pageSize) query.append("pageSize", params.pageSize);
+  if (params.dateFilter) query.append("dateFilter", params.dateFilter);
+
+  const queryString = query.toString();
+  return apiFetch(`/api/orders${queryString ? `?${queryString}` : ""}`);
 };
 
 export const updateOrderDeliveryStatus = async (orderId, deliveryStatus) => {

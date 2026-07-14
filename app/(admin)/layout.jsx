@@ -534,7 +534,7 @@ export default function AdminLayout({ children }) {
 
       {/* Sidebar Drawer container */}
       <aside className={`fixed top-[65px] bottom-0 lg:inset-y-0 left-0 w-72 bg-[var(--sidebar-bg)] p-8 flex flex-col gap-4 border-r border-[#e9e9e9] z-50 transition-transform duration-300 transform lg:rounded-none
-        lg:translate-x-0 lg:static lg:h-screen lg:w-64 xl:w-72 lg:flex-shrink-0 lg:z-auto
+        lg:translate-x-0 lg:static lg:h-screen lg:w-64 xl:w-72 lg:flex-shrink-0 lg:z-auto overflow-y-auto
         ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"}`}
       >
         <div className="hidden lg:block">

@@ -21,6 +21,11 @@ export default function VideosPage() {
   const [notification, setNotification] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [copiedId, setCopiedId] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredVideos = videos.filter((video) =>
+    (video.title || "").toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   // Form states
   const [title, setTitle] = useState("");
@@ -146,6 +151,25 @@ export default function VideosPage() {
         </button>
       </div>
 
+      {/* Modern Control Bar */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4 mb-8 md:mb-10">
+        <div className="md:col-span-9 relative group">
+          <input 
+            type="text" 
+            placeholder="Search video by title..." 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-white border border-[#dcd4cb] rounded-[16px] md:rounded-[24px] px-5 py-4 md:px-8 md:py-5 text-xs md:text-sm font-bold outline-none focus:border-[#b89b5e] focus:shadow-[0_10px_30px_rgba(184,155,94,0.05)] transition-all group-hover:border-[#b89b5e]/40"
+          />
+          <span className="absolute right-5 md:right-8 top-1/2 -translate-y-1/2 opacity-20 text-lg md:text-xl group-hover:opacity-40 transition-opacity italic">Searching</span>
+        </div>
+        <div className="md:col-span-3 bg-[#e2ddd5] rounded-[16px] md:rounded-[24px] px-4 py-4 md:px-6 md:py-5 flex items-center justify-center border border-[#dcd4cb]">
+          <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-[#2b2622]/40">
+            {filteredVideos.length} Items
+          </span>
+        </div>
+      </div>
+
       {/* Videos List Table */}
       <div className="bg-white rounded-[48px] border border-[#dcd4cb] overflow-hidden shadow-[0_30px_100px_rgba(0,0,0,0.03)] mb-10">
         <div className="overflow-x-auto overflow-y-visible">
@@ -159,16 +183,16 @@ export default function VideosPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#fcfbf9]">
-              {videos.length === 0 ? (
+              {filteredVideos.length === 0 ? (
                 <tr>
                   <td colSpan="4" className="p-32 text-center">
                     <div className="text-8xl mb-8 opacity-10">🎬</div>
                     <p className="text-[#6f6a65] font-bold text-xl tracking-tighter italic">No gallery videos inhabit these halls.</p>
-                    <p className="text-[#6f6a65]/40 text-xs mt-2 uppercase tracking-widest">Click upload video to start displaying dynamic media on your storefront.</p>
+                    <p className="text-[#6f6a65]/40 text-xs mt-2 uppercase tracking-widest">Adjust your search query or upload a video.</p>
                   </td>
                 </tr>
               ) : (
-                videos.map((video) => (
+                filteredVideos.map((video) => (
                   <tr key={video._id} className="hover:bg-[#fcfbf9]/60 transition-colors">
                     <td className="p-10">
                       <div className="w-32 aspect-[16/10] bg-black rounded-xl overflow-hidden border border-[#dcd4cb] shadow-sm relative group">
