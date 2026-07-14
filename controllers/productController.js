@@ -24,6 +24,10 @@ const getProducts = async (req, res) => {
       filter.category = { $regex: req.query.category, $options: 'i' };
     }
 
+    if (req.query.subCategory) {
+      filter.subCategory = { $regex: `^${req.query.subCategory}$`, $options: 'i' };
+    }
+
     if (req.query.occasion) {
       filter.occasion = req.query.occasion;
     }

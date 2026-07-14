@@ -13,7 +13,19 @@ const categorySchema = new mongoose.Schema(
       default: '',
     },
     subcategories: {
-      type: [String],
+      type: [
+        {
+          name: {
+            type: String,
+            required: true,
+            trim: true,
+          },
+          image: {
+            type: String,
+            default: '',
+          },
+        }
+      ],
       default: [],
     },
   },

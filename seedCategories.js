@@ -30,17 +30,22 @@ const seedCategories = async () => {
 
       if (existing) {
         // Merge any missing subcategories without removing existing ones.
-        const current = new Set(existing.subcategories.map((s) => s.toLowerCase()));
+        const current = new Set(existing.subcategories.map((s) => (s && s.name ? s.name.toLowerCase() : '')));
         const merged = [...existing.subcategories];
         for (const sub of def.subcategories) {
-          if (!current.has(sub.toLowerCase())) merged.push(sub);
+          if (!current.has(sub.toLowerCase())) {
+            merged.push({ name: sub, image: '' });
+          }
         }
         existing.subcategories = merged;
         await existing.save();
-        console.log(`Updated category "${existing.name}" (subcategories: ${merged.join(', ')})`);
+        console.log(`Updated category "${existing.name}" (subcategories: ${merged.map(s => s.name).join(', ')})`);
       } else {
-        const created = await Category.create(def);
-        console.log(`Created category "${created.name}" (subcategories: ${created.subcategories.join(', ')})`);
+        const created = await Category.create({
+          ...def,
+          subcategories: def.subcategories.map(name => ({ name, image: '' }))
+        });
+        console.log(`Created category "${created.name}" (subcategories: ${created.subcategories.map(s => s.name).join(', ')})`);
       }
     }
 

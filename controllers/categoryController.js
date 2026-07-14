@@ -38,15 +38,21 @@ const createCategory = async (req, res) => {
     let subs = [];
     if (Array.isArray(subcategories)) {
       const seen = new Set();
-      subs = subcategories
-        .map((s) => (typeof s === 'string' ? s.trim() : ''))
-        .filter((s) => {
-          if (!s) return false;
-          const key = s.toLowerCase();
-          if (seen.has(key)) return false;
-          seen.add(key);
-          return true;
-        });
+      for (const s of subcategories) {
+        let name = '';
+        let image = '';
+        if (typeof s === 'string') {
+          name = s.trim();
+        } else if (s && typeof s === 'object' && s.name) {
+          name = s.name.trim();
+          image = s.image ? s.image.trim() : '';
+        }
+        if (!name) continue;
+        const key = name.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        subs.push({ name, image });
+      }
     }
 
     const category = await Category.create({
@@ -67,7 +73,7 @@ const createCategory = async (req, res) => {
 // @access  Private/Admin
 const addSubcategory = async (req, res) => {
   try {
-    const { name } = req.body;
+    const { name, image } = req.body;
 
     if (!name || !name.trim()) {
       return res.status(400).json({ message: 'Subcategory name is required' });
@@ -79,15 +85,16 @@ const addSubcategory = async (req, res) => {
     }
 
     const trimmed = name.trim();
-    const exists = category.subcategories.some(
-      (s) => s.toLowerCase() === trimmed.toLowerCase()
-    );
+    const exists = category.subcategories.some((s) => {
+      const subName = typeof s === 'string' ? s : (s?.name || '');
+      return subName.toLowerCase() === trimmed.toLowerCase();
+    });
 
     if (exists) {
       return res.status(400).json({ message: 'Subcategory already exists in this category' });
     }
 
-    category.subcategories.push(trimmed);
+    category.subcategories.push({ name: trimmed, image: image ? image.trim() : '' });
     const updated = await category.save();
 
     res.status(201).json(updated);
@@ -114,9 +121,10 @@ const deleteSubcategory = async (req, res) => {
     }
 
     const trimmed = name.trim();
-    category.subcategories = category.subcategories.filter(
-      (s) => s.toLowerCase() !== trimmed.toLowerCase()
-    );
+    category.subcategories = category.subcategories.filter((s) => {
+      const subName = typeof s === 'string' ? s : (s?.name || '');
+      return subName.toLowerCase() !== trimmed.toLowerCase();
+    });
     const updated = await category.save();
 
     // Clear this subcategory from any products that used it
@@ -128,6 +136,72 @@ const deleteSubcategory = async (req, res) => {
     res.json(updated);
   } catch (error) {
     console.error('Error in deleteSubcategory:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Update a subcategory name and/or image
+// @route   PUT /api/categories/:id/subcategories
+// @access  Private/Admin
+const updateSubcategory = async (req, res) => {
+  try {
+    const { oldName, newName, image } = req.body;
+
+    if (!oldName || !oldName.trim()) {
+      return res.status(400).json({ message: 'Current subcategory name is required (oldName)' });
+    }
+
+    const category = await Category.findById(req.params.id);
+    if (!category) {
+      return res.status(404).json({ message: 'Category not found' });
+    }
+
+    const trimmedOld = oldName.trim();
+    const subIndex = category.subcategories.findIndex((s) => {
+      const subName = typeof s === 'string' ? s : (s?.name || '');
+      return subName.toLowerCase() === trimmedOld.toLowerCase();
+    });
+
+    if (subIndex === -1) {
+      return res.status(404).json({ message: 'Subcategory not found' });
+    }
+
+    // Prepare updated subcategory object
+    const updatedSub = { ...category.subcategories[subIndex].toObject() };
+
+    if (newName && newName.trim()) {
+      const trimmedNew = newName.trim();
+      if (trimmedNew.toLowerCase() !== trimmedOld.toLowerCase()) {
+        const exists = category.subcategories.some((s) => {
+          const subName = typeof s === 'string' ? s : (s?.name || '');
+          return subName.toLowerCase() === trimmedNew.toLowerCase();
+        });
+        if (exists) {
+          return res.status(400).json({ message: 'A subcategory with that name already exists' });
+        }
+      }
+      updatedSub.name = trimmedNew;
+    }
+
+    if (image !== undefined) {
+      updatedSub.image = image.trim();
+    }
+
+    category.subcategories[subIndex] = updatedSub;
+    category.markModified('subcategories');
+    const updated = await category.save();
+
+    // If subcategory name changed, update subCategory field of all products
+    if (newName && newName.trim() && newName.trim().toLowerCase() !== trimmedOld.toLowerCase()) {
+      await Product.updateMany(
+        { category: category.name, subCategory: trimmedOld },
+        { subCategory: newName.trim() }
+      );
+    }
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Error in updateSubcategory:', error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -240,6 +314,7 @@ export {
   createCategory,
   addSubcategory,
   deleteSubcategory,
+  updateSubcategory,
   deleteCategory,
   updateCategory,
   shiftCategoryProducts,
