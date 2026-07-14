@@ -32,12 +32,16 @@ const getProducts = async (req, res) => {
       filter.occasion = req.query.occasion;
     }
 
+    if (req.query.isBestseller === 'true') {
+      filter.isBestSeller = true;
+    }
+
     const count = await Product.countDocuments(filter);
     const products = await Product.find(filter)
       .limit(pageSize)
       .skip(pageSize * (page - 1));
 
-    res.json({ products, page, pages: Math.ceil(count / pageSize) });
+    res.json({ products, page, pages: Math.ceil(count / pageSize), total: count });
   } catch (error) {
     console.error('Error in getProducts:', error);
     res.status(500).json({ message: error.message });

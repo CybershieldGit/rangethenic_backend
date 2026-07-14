@@ -97,6 +97,10 @@ export default function AdminProductsPage() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [pageNumber, setPageNumber] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
   const [filterBestseller, setFilterBestseller] = useState(false);
   const [notification, setNotification] = useState(null);
   const [togglingId, setTogglingId] = useState(null);
@@ -108,11 +112,18 @@ export default function AdminProductsPage() {
     setTimeout(() => setNotification(null), 4000);
   };
 
-  const loadProducts = async () => {
+  const loadProducts = async (page = pageNumber, search = debouncedSearch, bestseller = filterBestseller) => {
     try {
       setLoading(true);
-      const data = await fetchProducts();
+      const data = await fetchProducts({
+        keyword: search,
+        pageNumber: page,
+        pageSize: 10,
+        isBestseller: bestseller ? "true" : "false"
+      });
       setProducts(data.products || []);
+      setTotalPages(data.pages || 1);
+      setTotalItems(data.total || 0);
     } catch (err) {
       console.error(err.message);
     } finally {
@@ -120,34 +131,50 @@ export default function AdminProductsPage() {
     }
   };
 
-  // Silent background refresh — no loading spinner
-  const refreshProducts = async () => {
+  const loadProductsSilent = async (page = pageNumber, search = debouncedSearch, bestseller = filterBestseller) => {
     try {
-      const data = await fetchProducts();
+      const data = await fetchProducts({
+        keyword: search,
+        pageNumber: page,
+        pageSize: 10,
+        isBestseller: bestseller ? "true" : "false"
+      });
       setProducts(data.products || []);
+      setTotalPages(data.pages || 1);
+      setTotalItems(data.total || 0);
     } catch (err) {
-      // Silently fail on background refresh
+      // ignore
     }
   };
+
+  // Debounce search query input
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setPageNumber(1);
+    }, 450);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    loadProducts(pageNumber, debouncedSearch, filterBestseller);
+  }, [pageNumber, debouncedSearch, filterBestseller]);
 
   const socket = useSocket();
 
   useEffect(() => {
-    loadProducts();
-
     // Poll every 2 minutes to keep stock counts updated
-    const interval = setInterval(refreshProducts, 120000);
+    const interval = setInterval(() => {
+      loadProductsSilent(pageNumber, debouncedSearch, filterBestseller);
+    }, 120000);
     return () => clearInterval(interval);
-  }, []);
+  }, [pageNumber, debouncedSearch, filterBestseller]);
 
   useEffect(() => {
     if (!socket) return;
 
     const handleProductCreated = (newProduct) => {
-      setProducts((prevProducts) => {
-        if (prevProducts.some((p) => p._id === newProduct._id)) return prevProducts;
-        return [newProduct, ...prevProducts];
-      });
+      loadProductsSilent(pageNumber, debouncedSearch, filterBestseller);
       showNotification(`New product ${newProduct.name} created.`);
     };
 
@@ -168,6 +195,7 @@ export default function AdminProductsPage() {
         }
         return prevProducts.map((p) => (p._id === updatedProduct._id ? updatedProduct : p));
       });
+      loadProductsSilent(pageNumber, debouncedSearch, filterBestseller);
     };
 
     const handleProductDeleted = (deletedProductId) => {
@@ -178,6 +206,7 @@ export default function AdminProductsPage() {
         }
         return prevProducts.filter((p) => p._id !== deletedProductId);
       });
+      loadProductsSilent(pageNumber, debouncedSearch, filterBestseller);
     };
 
     socket.on("productCreated", handleProductCreated);
@@ -189,16 +218,14 @@ export default function AdminProductsPage() {
       socket.off("productUpdated", handleProductUpdated);
       socket.off("productDeleted", handleProductDeleted);
     };
-  }, [socket]);
+  }, [socket, pageNumber, debouncedSearch, filterBestseller]);
 
-  const handleDelete = async () => {
-    if (!productToDelete) return;
-    const { _id: id, name } = productToDelete;
+  const handleDeleteProduct = async (id) => {
     try {
       await deleteProduct(id);
-      setProducts(products.filter((p) => p._id !== id));
+      showNotification("Product deleted successfully.");
       setProductToDelete(null);
-      showNotification(`${name} has been deleted.`);
+      loadProducts(pageNumber, debouncedSearch, filterBestseller);
     } catch (err) {
       showNotification(err.message, "error");
     }
@@ -207,9 +234,10 @@ export default function AdminProductsPage() {
   const handleToggleBestseller = async (id, currentStatus) => {
     setTogglingId(id);
     try {
-      await updateProduct(id, { isBestSeller: !currentStatus });
-      setProducts(products.map(p => p._id === id ? { ...p, isBestSeller: !currentStatus } : p));
-      showNotification("Product status updated.");
+      const newStatus = !currentStatus;
+      await updateProduct(id, { isBestSeller: newStatus });
+      setProducts(products.map(p => p._id === id ? { ...p, isBestSeller: newStatus } : p));
+      showNotification(newStatus ? "Product set as Bestseller." : "Bestseller status removed.");
     } catch (err) {
       showNotification(err.message, "error");
     } finally {
@@ -222,7 +250,6 @@ export default function AdminProductsPage() {
     try {
       const newStatus = !currentStatus;
       await updateProduct(id, { isFeatured: newStatus });
-      // Backend now allows multiple featured products, so just update the target product status locally
       setProducts(products.map(p => p._id === id ? { ...p, isFeatured: newStatus } : p));
       showNotification(newStatus ? "Product set as New Arrival." : "New Arrival status removed.");
     } catch (err) {
@@ -232,22 +259,7 @@ export default function AdminProductsPage() {
     }
   };
 
-  const filteredProducts = useMemo(() => {
-    return products.filter(p => {
-      const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesFilter = filterBestseller ? p.isBestSeller : true;
-      return matchesSearch && matchesFilter;
-    });
-  }, [products, searchQuery, filterBestseller]);
-
-  if (loading) {
-    return (
-      <div className="flex flex-col justify-center items-center h-[60vh] gap-6">
-        <LoadingSpinner size="w-12 h-12" color="border-[#b89b5e]" />
-        <p className="text-[10px] font-black uppercase tracking-[0.5em] text-[#b89b5e] animate-pulse">Illuminating Catalog...</p>
-      </div>
-    );
-  }
+  const filteredProducts = products;
 
   return (
     <div className="max-w-7xl mx-auto relative">
@@ -287,7 +299,10 @@ export default function AdminProductsPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-white border border-[#dcd4cb] rounded-[16px] md:rounded-[24px] px-5 py-4 md:px-8 md:py-5 text-xs md:text-sm font-bold outline-none focus:border-[#b89b5e] focus:shadow-[0_10px_30px_rgba(184,155,94,0.05)] transition-all group-hover:border-[#b89b5e]/40"
           />
-          <span className="absolute right-5 md:right-8 top-1/2 -translate-y-1/2 opacity-20 text-lg md:text-xl group-hover:opacity-40 transition-opacity italic">Searching</span>
+          <span className="absolute right-5 md:right-8 top-1/2 -translate-y-1/2 opacity-20 text-xs md:text-sm group-hover:opacity-40 transition-opacity italic flex items-center gap-2">
+            {loading && <LoadingSpinner size="w-3.5 h-3.5" color="border-[#b89b5e]" />}
+            {loading ? "Searching..." : "Searching"}
+          </span>
         </div>
         <div className="md:col-span-3">
           <button 
@@ -303,7 +318,7 @@ export default function AdminProductsPage() {
         </div>
         <div className="md:col-span-2 bg-[#e2ddd5] rounded-[16px] md:rounded-[24px] px-4 py-4 md:px-6 md:py-5 flex items-center justify-center border border-[#dcd4cb]">
           <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-[#2b2622]/40">
-            {filteredProducts.length} Items
+            {totalItems} Items
           </span>
         </div>
       </div>
@@ -323,7 +338,16 @@ export default function AdminProductsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#fcfbf9]">
-              {filteredProducts.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan="6" className="p-32 text-center">
+                    <div className="flex flex-col items-center justify-center gap-4">
+                      <LoadingSpinner size="w-12 h-12" color="border-[#b89b5e]" />
+                      <p className="text-[10px] font-black uppercase tracking-[0.5em] text-[#b89b5e] animate-pulse">Illuminating Catalog...</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredProducts.length === 0 ? (
                 <tr>
                   <td colSpan="6" className="p-32 text-center flex-col items-center">
                     <div className="text-8xl mb-8 opacity-10">🔍</div>
@@ -347,6 +371,43 @@ export default function AdminProductsPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 px-10 py-6 bg-[#fcfbf9] border-t border-[#f2eee9] rounded-b-[48px]">
+            <button
+              onClick={() => setPageNumber(prev => Math.max(prev - 1, 1))}
+              disabled={pageNumber === 1}
+              className="w-full sm:w-auto px-5 py-3 rounded-xl bg-white border border-[#dcd4cb] hover:border-[#b89b5e] hover:text-[#b89b5e] text-xs font-black uppercase tracking-widest transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-[#dcd4cb] disabled:hover:text-inherit"
+            >
+              ← Previous
+            </button>
+            
+            <div className="flex items-center gap-2 overflow-x-auto max-w-full py-1">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setPageNumber(p)}
+                  className={`w-9 h-9 rounded-xl text-xs font-black transition-all shrink-0 cursor-pointer ${
+                    pageNumber === p
+                    ? "bg-[#2b2622] text-white shadow-md"
+                    : "bg-white border border-[#dcd4cb] hover:border-[#b89b5e] text-[#2b2622]"
+                  }`}
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setPageNumber(prev => Math.min(prev + 1, totalPages))}
+              disabled={pageNumber === totalPages}
+              className="w-full sm:w-auto px-5 py-3 rounded-xl bg-white border border-[#dcd4cb] hover:border-[#b89b5e] hover:text-[#b89b5e] text-xs font-black uppercase tracking-widest transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-[#dcd4cb] disabled:hover:text-inherit"
+            >
+              Next →
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Delete Confirmation Modal */}

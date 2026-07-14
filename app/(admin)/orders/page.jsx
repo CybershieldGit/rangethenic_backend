@@ -25,8 +25,13 @@ const LoadingSpinner = ({ size = "w-4 h-4", color = "border-white" }) => (
 
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState([]);
+  const [allStatsOrders, setAllStatsOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [pageNumber, setPageNumber] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
   const [dateFilter, setDateFilter] = useState("all"); // "all", "today", "yesterday", "7", "30"
   const [isDateDropdownOpen, setIsDateDropdownOpen] = useState(false);
   const [notification, setNotification] = useState(null);
@@ -58,10 +63,6 @@ export default function AdminOrdersPage() {
     "Other",
   ];
 
-  useEffect(() => {
-    fetchOrders();
-  }, []);
-
   // Handle global click to close dropdowns when clicking outside
   useEffect(() => {
     const handleGlobalClick = (event) => {
@@ -78,11 +79,18 @@ export default function AdminOrdersPage() {
     };
   }, []);
 
-  const fetchOrders = async () => {
+  const fetchOrders = async (page = pageNumber, search = debouncedSearch, date = dateFilter) => {
     try {
       setLoading(true);
-      const data = await getAllOrders();
-      setOrders(data || []);
+      const data = await getAllOrders({
+        keyword: search,
+        pageNumber: page,
+        pageSize: 10,
+        dateFilter: date
+      });
+      setOrders(data.orders || []);
+      setTotalPages(data.pages || 1);
+      setTotalItems(data.total || 0);
     } catch (error) {
       console.error("Error fetching admin orders:", error);
       showNotification("error", error.message || "Failed to fetch orders");
@@ -91,16 +99,56 @@ export default function AdminOrdersPage() {
     }
   };
 
+  const fetchOrdersSilent = async (page = pageNumber, search = debouncedSearch, date = dateFilter) => {
+    try {
+      const data = await getAllOrders({
+        keyword: search,
+        pageNumber: page,
+        pageSize: 10,
+        dateFilter: date
+      });
+      setOrders(data.orders || []);
+      setTotalPages(data.pages || 1);
+      setTotalItems(data.total || 0);
+    } catch (error) {
+      // ignore
+    }
+  };
+
+  const fetchStatsOrders = async () => {
+    try {
+      const data = await getAllOrders({ pageSize: 10000 });
+      setAllStatsOrders(data.orders || []);
+    } catch (err) {
+      // ignore
+    }
+  };
+
+  // Debouncing search query input
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setPageNumber(1);
+    }, 450);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    fetchOrders(pageNumber, debouncedSearch, dateFilter);
+  }, [pageNumber, debouncedSearch, dateFilter]);
+
+  useEffect(() => {
+    fetchStatsOrders();
+  }, []);
+
   const socket = useSocket();
 
   useEffect(() => {
     if (!socket) return;
 
     const handleOrderCreated = (newOrder) => {
-      setOrders((prevOrders) => {
-        if (prevOrders.some((o) => o._id === newOrder._id)) return prevOrders;
-        return [newOrder, ...prevOrders];
-      });
+      fetchOrdersSilent(pageNumber, debouncedSearch, dateFilter);
+      fetchStatsOrders();
       showNotification("success", `New Order Placed: #${newOrder._id?.slice(-8).toUpperCase()} by ${newOrder.user?.name || "Guest"}`);
     };
 
@@ -108,6 +156,8 @@ export default function AdminOrdersPage() {
       setOrders((prevOrders) =>
         prevOrders.map((ord) => (ord._id === updatedOrder._id ? updatedOrder : ord))
       );
+      fetchOrdersSilent(pageNumber, debouncedSearch, dateFilter);
+      fetchStatsOrders();
       showNotification("success", `Order #${updatedOrder._id?.slice(-8).toUpperCase()} updated: ${formatOrderStatusUpdate(updatedOrder)}`);
     };
 
@@ -118,7 +168,7 @@ export default function AdminOrdersPage() {
       socket.off("orderCreated", handleOrderCreated);
       socket.off("orderUpdated", handleOrderUpdated);
     };
-  }, [socket]);
+  }, [socket, pageNumber, debouncedSearch, dateFilter]);
 
   const handleSyncToShiprocket = async (orderId) => {
     try {
@@ -284,7 +334,7 @@ export default function AdminOrdersPage() {
   };
 
   // Stats calculation
-  const stats = orders.reduce(
+  const stats = (allStatsOrders.length ? allStatsOrders : orders).reduce(
     (acc, ord) => {
       acc.total += 1;
       acc.revenue += ord.isPaid ? ord.totalPrice : 0;
@@ -297,65 +347,7 @@ export default function AdminOrdersPage() {
     { total: 0, revenue: 0, placed: 0, dispatched: 0, delivered: 0, cancelled: 0 }
   );
 
-  // Dynamic search and date filtering engine
-  const filteredOrders = useMemo(() => {
-    return orders.filter((order) => {
-      // 1. Search Query Match
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase().trim();
-        const clientName = (order.user?.name || "Guest Customer").toLowerCase();
-        const clientEmail = (order.user?.email || "N/A").toLowerCase();
-        const orderId = (order._id || "").toLowerCase();
-        const addressName = (order.shippingAddress?.fullName || "").toLowerCase();
-        const itemsMatch = (order.orderItems || order.items || []).some((item) =>
-          (item.name || item.product?.name || "").toLowerCase().includes(query)
-        );
-
-        if (
-          !clientName.includes(query) &&
-          !clientEmail.includes(query) &&
-          !orderId.includes(query) &&
-          !addressName.includes(query) &&
-          !itemsMatch
-        ) {
-          return false;
-        }
-      }
-
-      // 2. Date Filter Match
-      if (dateFilter !== "all") {
-        const orderDate = new Date(order.createdAt);
-        const today = new Date();
-        const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-
-        if (dateFilter === "today") {
-          if (orderDate < todayStart) return false;
-        } else if (dateFilter === "yesterday") {
-          const yesterdayStart = new Date(todayStart.getTime() - 24 * 60 * 60 * 1000);
-          if (orderDate < yesterdayStart || orderDate >= todayStart) return false;
-        } else if (dateFilter === "7") {
-          const sevenDaysAgo = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000);
-          if (orderDate < sevenDaysAgo) return false;
-        } else if (dateFilter === "30") {
-          const thirtyDaysAgo = new Date(todayStart.getTime() - 30 * 24 * 60 * 60 * 1000);
-          if (orderDate < thirtyDaysAgo) return false;
-        }
-      }
-
-      return true;
-    });
-  }, [orders, searchQuery, dateFilter]);
-
-  if (loading) {
-    return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4">
-        <LoadingSpinner size="w-12 h-12" color="border-[#b89b5e]" />
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#2b2622]/40 animate-pulse">
-          Summoning Admin Records...
-        </p>
-      </div>
-    );
-  }
+  const filteredOrders = orders;
 
   return (
     <div className="space-y-10 max-w-6xl mx-auto">
@@ -410,9 +402,13 @@ export default function AdminOrdersPage() {
             {/* Search Input */}
             <div className="relative flex-1 max-w-xs sm:max-w-md">
               <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#6f6a65]/40">
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
+                {loading ? (
+                  <LoadingSpinner size="w-3.5 h-3.5" color="border-[#b89b5e]" />
+                ) : (
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                )}
               </span>
               <input
                 type="text"
@@ -507,7 +503,14 @@ export default function AdminOrdersPage() {
           </div>
 
           <div className="overflow-x-auto">
-            {filteredOrders.length === 0 ? (
+            {loading ? (
+              <div className="text-center py-20 bg-white">
+                <div className="flex flex-col items-center justify-center gap-4">
+                  <LoadingSpinner size="w-12 h-12" color="border-[#b89b5e]" />
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#b89b5e] animate-pulse">Summoning Admin Records...</p>
+                </div>
+              </div>
+            ) : filteredOrders.length === 0 ? (
               <div className="text-center py-20 bg-white">
                 <p className="text-[#6f6a65] italic font-light">No orders match your search query or selected date filter.</p>
               </div>
@@ -705,6 +708,43 @@ export default function AdminOrdersPage() {
               </table>
             )}
           </div>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 px-10 py-6 bg-[#fcfbf9] border-t border-[#f2eee9] rounded-b-[40px]">
+              <button
+                onClick={() => setPageNumber(prev => Math.max(prev - 1, 1))}
+                disabled={pageNumber === 1}
+                className="w-full sm:w-auto px-5 py-3 rounded-xl bg-white border border-[#dcd4cb] hover:border-[#b89b5e] hover:text-[#b89b5e] text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                ← Previous
+              </button>
+              
+              <div className="flex items-center gap-2 overflow-x-auto max-w-full py-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setPageNumber(p)}
+                    className={`w-9 h-9 rounded-xl text-[10px] font-black transition-all shrink-0 cursor-pointer ${
+                      pageNumber === p
+                      ? "bg-[#2b2622] text-white shadow-md"
+                      : "bg-white border border-[#dcd4cb] hover:border-[#b89b5e] text-[#2b2622]"
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                onClick={() => setPageNumber(prev => Math.min(prev + 1, totalPages))}
+                disabled={pageNumber === totalPages}
+                className="w-full sm:w-auto px-5 py-3 rounded-xl bg-white border border-[#dcd4cb] hover:border-[#b89b5e] hover:text-[#b89b5e] text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Next →
+              </button>
+            </div>
+          )}
         </div>
       )}
 

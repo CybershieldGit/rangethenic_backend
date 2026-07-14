@@ -527,19 +527,86 @@ const verifyPayment = async (req, res) => {
 // @access  Private/Admin
 const getAllOrders = async (req, res) => {
   try {
-    // Only show confirmed orders: COD orders OR paid online orders
-    const orders = await Order.find({
-      $or: [
-        { paymentMethod: 'COD' },
-        { paymentMethod: 'Online', isPaid: true },
+    const pageSize = Number(req.query.pageSize) || 10;
+    const page = Number(req.query.pageNumber) || 1;
+
+    // Base filter: Only show confirmed orders: COD orders OR paid online orders
+    const filter = {
+      $and: [
+        {
+          $or: [
+            { paymentMethod: 'COD' },
+            { paymentMethod: 'Online', isPaid: true },
+          ]
+        }
       ]
-    })
+    };
+
+    // Keyword Search (User Name, User Email, Shipping Address FullName, Order ID)
+    if (req.query.keyword) {
+      const keywordRegex = { $regex: req.query.keyword, $options: 'i' };
+      
+      let matchingUserIds = [];
+      try {
+        const matchedUsers = await User.find({
+          $or: [
+            { name: keywordRegex },
+            { email: keywordRegex },
+          ]
+        }).select('_id');
+        matchingUserIds = matchedUsers.map(u => u._id);
+      } catch (err) {
+        console.error('Error fetching matching users for search:', err);
+      }
+
+      const searchConditions = [
+        { 'shippingAddress.fullName': keywordRegex },
+      ];
+
+      if (matchingUserIds.length > 0) {
+        searchConditions.push({ user: { $in: matchingUserIds } });
+      }
+
+      // Check if keyword is a valid ObjectId for matching order._id
+      if (req.query.keyword.match(/^[0-9a-fA-F]{24}$/)) {
+        searchConditions.push({ _id: req.query.keyword });
+      }
+
+      filter.$and.push({ $or: searchConditions });
+    }
+
+    // Date Filter Match
+    if (req.query.dateFilter && req.query.dateFilter !== 'all') {
+      const today = new Date();
+      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      let dateCondition = {};
+
+      if (req.query.dateFilter === 'today') {
+        dateCondition = { $gte: todayStart };
+      } else if (req.query.dateFilter === 'yesterday') {
+        const yesterdayStart = new Date(todayStart.getTime() - 24 * 60 * 60 * 1000);
+        dateCondition = { $gte: yesterdayStart, $lt: todayStart };
+      } else if (req.query.dateFilter === '7') {
+        const sevenDaysAgo = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000);
+        dateCondition = { $gte: sevenDaysAgo };
+      } else if (req.query.dateFilter === '30') {
+        const thirtyDaysAgo = new Date(todayStart.getTime() - 30 * 24 * 60 * 60 * 1000);
+        dateCondition = { $gte: thirtyDaysAgo };
+      }
+
+      filter.$and.push({ createdAt: dateCondition });
+    }
+
+    const count = await Order.countDocuments(filter);
+    const orders = await Order.find(filter)
       .populate('user', 'id name email')
       .populate('orderItems.product')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .limit(pageSize)
+      .skip(pageSize * (page - 1));
 
     await refreshOrdersTrackingBatch(orders, { emit: false });
-    res.json(orders);
+    res.json({ orders, page, pages: Math.ceil(count / pageSize), total: count });
   } catch (error) {
     console.error('Error in getAllOrders:', error);
     res.status(500).json({ message: error.message });

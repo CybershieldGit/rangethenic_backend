@@ -46,6 +46,13 @@ export default function JewelColorsPage() {
   const [deletingId, setDeletingId] = useState(null);
   const [notification, setNotification] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredAttributes = attributes.filter((attr) => {
+    const hasPipe = attr.value.includes("|");
+    const name = hasPipe ? attr.value.split("|")[0] : attr.value;
+    return name.toLowerCase().includes(searchQuery.toLowerCase());
+  });
 
   const showNotification = (message, type = "success") => {
     setNotification({ message, type });
@@ -128,7 +135,7 @@ export default function JewelColorsPage() {
     return (
       <div className="flex flex-col justify-center items-center h-[60vh] gap-6">
         <LoadingSpinner size="w-12 h-12" color="border-[#b89b5e]" />
-        <p className="text-[10px] font-black uppercase tracking-[0.5em] text-[#b89b5e] animate-pulse">Loading Colors...</p>
+        <p className="text-[10px] font-black uppercase tracking-[0.5em] text-[#b89b5e] animate-pulse">Loading Jewel Colors...</p>
       </div>
     );
   }
@@ -160,6 +167,25 @@ export default function JewelColorsPage() {
         </button>
       </div>
 
+      {/* Modern Control Bar */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4 mb-8 md:mb-10 px-4 sm:px-0">
+        <div className="md:col-span-9 relative group">
+          <input 
+            type="text" 
+            placeholder="Search jewel color by name..." 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-white border border-[#dcd4cb] rounded-[16px] md:rounded-[24px] px-5 py-4 md:px-8 md:py-5 text-xs md:text-sm font-bold outline-none focus:border-[#b89b5e] focus:shadow-[0_10px_30px_rgba(184,155,94,0.05)] transition-all group-hover:border-[#b89b5e]/40"
+          />
+          <span className="absolute right-5 md:right-8 top-1/2 -translate-y-1/2 opacity-20 text-lg md:text-xl group-hover:opacity-40 transition-opacity italic">Searching</span>
+        </div>
+        <div className="md:col-span-3 bg-[#e2ddd5] rounded-[16px] md:rounded-[24px] px-4 py-4 md:px-6 md:py-5 flex items-center justify-center border border-[#dcd4cb]">
+          <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-[#2b2622]/40">
+            {filteredAttributes.length} Items
+          </span>
+        </div>
+      </div>
+
       {/* Main List */}
       <div className="px-4 sm:px-0">
         <div className="bg-white rounded-[32px] border border-[#e8e1d9] overflow-hidden shadow-[0_15px_50px_rgba(0,0,0,0.02)]">
@@ -172,14 +198,14 @@ export default function JewelColorsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#fcfbf9]">
-                {attributes.length === 0 ? (
+                {filteredAttributes.length === 0 ? (
                   <tr>
                     <td colSpan="2" className="p-16 text-center text-[#6f6a65]/40 text-xs italic">
-                      No jewel colors available.
+                      No matching jewel colors available.
                     </td>
                   </tr>
                 ) : (
-                  attributes.map((attr) => {
+                  filteredAttributes.map((attr) => {
                     const hasPipe = attr.value.includes("|");
                     const name = hasPipe ? attr.value.split("|")[0] : attr.value;
                     const hex = hasPipe ? attr.value.split("|")[1] : "#CCCCCC";

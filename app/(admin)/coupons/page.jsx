@@ -461,7 +461,7 @@ export default function AdminCouponsPage() {
       {/* Creation/Edit Modal overlay */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-[#2b2622]/40 backdrop-blur-sm z-[999] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[32px] w-full max-w-lg border border-[#dcd4cb] p-8 md:p-10 shadow-2xl animate-in fade-in duration-300">
+          <div className="bg-white rounded-[32px] w-full max-w-lg border border-[#dcd4cb] p-8 md:p-10 shadow-2xl animate-in fade-in duration-300 max-h-[90vh] overflow-y-auto scrollbar-thin">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-3xl font-bold tracking-tighter text-[#2b2622]">
                 {editingCoupon ? "Modify Coupon" : "Manifest New Coupon"}
