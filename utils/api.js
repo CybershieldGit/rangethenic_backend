@@ -398,6 +398,13 @@ export const deleteSubcategory = async (categoryId, name) => {
   });
 };
 
+export const updateSubcategory = async (categoryId, oldName, newName, image) => {
+  return apiFetch(`/api/categories/${categoryId}/subcategories`, {
+    method: "PUT",
+    body: JSON.stringify({ oldName, newName, image }),
+  });
+};
+
 // --- COUPONS API ---
 
 export const fetchActiveCoupons = async () => {

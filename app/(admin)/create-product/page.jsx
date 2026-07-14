@@ -366,24 +366,27 @@ export default function CreateProductPage() {
                       {subcategories.length === 0 ? (
                         <div className="p-4 text-center text-[#6f6a65]/40 text-xs italic">No subcategories yet. Add them from the Categories page in the sidebar.</div>
                       ) : (
-                        subcategories.map((sub, idx) => (
-                          <button key={idx} type="button"
-                            onClick={() => {
-                              setFormData(prev => ({ ...prev, subCategory: sub }));
-                              setSubDropdownOpen(false);
-                            }}
-                            className={`w-full text-left px-5 py-3 text-sm font-semibold transition-all flex items-center justify-between ${
-                              formData.subCategory === sub ? 'bg-[#b89b5e]/10 text-[#b89b5e]' : 'text-[#2b2622] hover:bg-[#fcfbf9]'
-                            }`}
-                          >
-                            <span>{sub}</span>
-                            {formData.subCategory === sub && (
-                              <svg className="w-4 h-4 text-[#b89b5e]" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                              </svg>
-                            )}
-                          </button>
-                        ))
+                        subcategories.map((sub, idx) => {
+                          const subName = typeof sub === 'string' ? sub : (sub?.name || '');
+                          return (
+                            <button key={idx} type="button"
+                              onClick={() => {
+                                setFormData(prev => ({ ...prev, subCategory: subName }));
+                                setSubDropdownOpen(false);
+                              }}
+                              className={`w-full text-left px-5 py-3 text-sm font-semibold transition-all flex items-center justify-between ${
+                                formData.subCategory === subName ? 'bg-[#b89b5e]/10 text-[#b89b5e]' : 'text-[#2b2622] hover:bg-[#fcfbf9]'
+                              }`}
+                            >
+                              <span>{subName}</span>
+                              {formData.subCategory === subName && (
+                                <svg className="w-4 h-4 text-[#b89b5e]" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                                </svg>
+                              )}
+                            </button>
+                          );
+                        })
                       )}
                     </div>
                   )}

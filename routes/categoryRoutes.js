@@ -4,6 +4,7 @@ import {
   createCategory,
   addSubcategory,
   deleteSubcategory,
+  updateSubcategory,
   deleteCategory,
   updateCategory,
   shiftCategoryProducts,
@@ -17,6 +18,7 @@ router.post('/', protect, admin, createCategory);
 router.put('/:id', protect, admin, updateCategory);
 router.post('/shift', protect, admin, shiftCategoryProducts);
 router.post('/:id/subcategories', protect, admin, addSubcategory);
+router.put('/:id/subcategories', protect, admin, updateSubcategory);
 router.delete('/:id/subcategories', protect, admin, deleteSubcategory);
 router.delete('/:id', protect, admin, deleteCategory);
 
