@@ -172,10 +172,10 @@ export default function VideosPage() {
 
       {/* Videos List Table */}
       <div className="bg-white rounded-[48px] border border-[#dcd4cb] overflow-hidden shadow-[0_30px_100px_rgba(0,0,0,0.03)] mb-10">
-        <div className="overflow-x-auto overflow-y-visible">
+        <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
           <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-[#fcfbf9] border-b border-[#f2eee9]">
+            <thead className="sticky top-0 bg-[#fcfbf9] z-10">
+              <tr className="border-b border-[#f2eee9]">
                 <th className="p-10 font-black text-[#6f6a65]/40 text-[10px] uppercase tracking-[0.3em] w-48">Video Preview</th>
                 <th className="p-10 font-black text-[#6f6a65]/40 text-[10px] uppercase tracking-[0.3em]">Video Info</th>
                 <th className="p-10 font-black text-[#6f6a65]/40 text-[10px] uppercase tracking-[0.3em]">Cloudinary URL</th>
