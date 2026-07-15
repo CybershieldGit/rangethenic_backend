@@ -133,10 +133,10 @@ export default function WorksPage() {
       {/* Main List */}
       <div className="px-4 sm:px-0">
         <div className="bg-white rounded-[32px] border border-[#e8e1d9] overflow-hidden shadow-[0_15px_50px_rgba(0,0,0,0.02)]">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
             <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-[#fcfbf9] border-b border-[#f2eee9]">
+              <thead className="sticky top-0 bg-[#fcfbf9] z-10">
+                <tr className="border-b border-[#f2eee9]">
                   <th className="p-6 font-black text-[#6f6a65]/40 text-[9px] uppercase tracking-[0.3em]">Available Works</th>
                   <th className="p-6 font-black text-[#6f6a65]/40 text-[9px] uppercase tracking-[0.3em] text-right">Actions</th>
                 </tr>

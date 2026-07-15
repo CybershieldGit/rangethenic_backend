@@ -23,7 +23,7 @@ const getHeaders = () => {
 // Global Fetch Wrapper with Logging and Error Handling
 const apiFetch = async (endpoint, options = {}) => {
   const url = `${API_URL}${endpoint}`;
-  console.log("REQUEST:", url, options.method || "GET");
+  // console.log("REQUEST:", url, options.method || "GET");
   
   try {
     const res = await fetch(url, {
@@ -36,7 +36,7 @@ const apiFetch = async (endpoint, options = {}) => {
     });
 
     const data = await res.json();
-    console.log("RESPONSE:", url, data);
+    // console.log("RESPONSE:", url, data);
 
     if (!res.ok) {
       const errorMsg = data.message || "API request failed";

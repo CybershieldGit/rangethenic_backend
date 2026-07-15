@@ -502,7 +502,7 @@ export default function AdminOrdersPage() {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
             {loading ? (
               <div className="text-center py-20 bg-white">
                 <div className="flex flex-col items-center justify-center gap-4">
@@ -516,8 +516,8 @@ export default function AdminOrdersPage() {
               </div>
             ) : (
               <table className="w-full min-w-[1200px] text-left border-collapse">
-                <thead>
-                  <tr className="bg-[#fcfbf9] border-b border-[#f2eee9] text-[#6f6a65] text-[10px] font-black uppercase tracking-wider">
+                <thead className="sticky top-0 bg-[#fcfbf9] z-10">
+                  <tr className="border-b border-[#f2eee9] text-[#6f6a65] text-[10px] font-black uppercase tracking-wider">
                     <th className="py-5 px-6">Client / Order ID</th>
                     <th className="py-5 px-6">Delivery Address</th>
                     <th className="py-5 px-6">Products</th>

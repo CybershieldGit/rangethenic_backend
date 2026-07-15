@@ -325,10 +325,10 @@ export default function AdminProductsPage() {
 
       {/* Refined Products Table */}
       <div className="bg-white rounded-[48px] border border-[#dcd4cb] overflow-hidden shadow-[0_30px_100px_rgba(0,0,0,0.03)] mx-4 sm:mx-0 mb-10">
-        <div className="overflow-x-auto overflow-y-visible">
+        <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
           <table className="w-full text-left border-collapse">
-            <thead className="sticky top-0 z-20">
-              <tr className="bg-[#fcfbf9] border-b border-[#f2eee9]">
+            <thead className="sticky top-0 z-20 bg-[#fcfbf9]">
+              <tr className="border-b border-[#f2eee9]">
                 <th className="p-10 font-black text-[#6f6a65]/40 text-[10px] uppercase tracking-[0.3em]">Product Details</th>
                 <th className="p-10 font-black text-[#6f6a65]/40 text-[10px] uppercase tracking-[0.3em]">Price</th>
                 <th className="p-10 font-black text-[#6f6a65]/40 text-[10px] uppercase tracking-[0.3em]">Stock</th>
@@ -438,7 +438,7 @@ export default function AdminProductsPage() {
               <div className="flex gap-3 w-full pt-2">
                 <button
                   type="button"
-                  onClick={handleDelete}
+                  onClick={() => handleDeleteProduct(productToDelete._id)}
                   className="w-full bg-red-600 hover:bg-red-700 text-white py-3.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all duration-300 shadow-md cursor-pointer flex items-center justify-center active:scale-95"
                 >
                   Confirm Delete
