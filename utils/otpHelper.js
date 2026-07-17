@@ -79,6 +79,62 @@ const saveResetOtp = async (email) => {
   return otp;
 };
 
+const saveAdminLoginOtp = async (email) => {
+  const existing = await OTP.findOne({ email, purpose: 'admin-login' });
+
+  if (existing && !canResendOtp(existing.lastSentAt)) {
+    const error = new Error('Please wait before requesting another OTP');
+    error.statusCode = 429;
+    error.cooldown = getResendCooldown(existing.lastSentAt);
+    throw error;
+  }
+
+  const otp = generateOtpCode();
+
+  await OTP.findOneAndUpdate(
+    { email, purpose: 'admin-login' },
+    {
+      email,
+      purpose: 'admin-login',
+      otp,
+      lastSentAt: new Date(),
+      createdAt: new Date(),
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+
+  return otp;
+};
+
+const saveAdminSignupOtp = async ({ email, name, password }) => {
+  const existing = await OTP.findOne({ email, purpose: 'admin-signup' });
+
+  if (existing && !canResendOtp(existing.lastSentAt)) {
+    const error = new Error('Please wait before requesting another OTP');
+    error.statusCode = 429;
+    error.cooldown = getResendCooldown(existing.lastSentAt);
+    throw error;
+  }
+
+  const otp = generateOtpCode();
+
+  await OTP.findOneAndUpdate(
+    { email, purpose: 'admin-signup' },
+    {
+      email,
+      purpose: 'admin-signup',
+      otp,
+      name,
+      password,
+      lastSentAt: new Date(),
+      createdAt: new Date(),
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+
+  return otp;
+};
+
 const verifyOtp = async ({ email, otp, purpose }) => {
   const record = await OTP.findOne({ email, purpose, otp });
 
@@ -114,6 +170,8 @@ export {
   getResendCooldown,
   saveSignupOtp,
   saveResetOtp,
+  saveAdminLoginOtp,
+  saveAdminSignupOtp,
   verifyOtp,
   deleteOtp,
 };

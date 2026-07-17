@@ -52,7 +52,12 @@ const sendOtpEmail = async ({ to, otp, purpose }) => {
   const action =
     purpose === 'signup'
       ? 'complete your registration'
+      : purpose === 'admin-signup'
+      ? 'verify your admin registration'
+      : purpose === 'admin-login'
+      ? 'verify your admin login'
       : 'reset your password';
+
 
   const subject = `${storeName} - Your verification code`;
   const text = `Your ${storeName} verification code is ${otp}. Use this code to ${action}. This code expires in ${expiresMinutes} minutes.`;

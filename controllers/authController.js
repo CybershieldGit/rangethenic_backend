@@ -23,6 +23,8 @@ const sendAuthResponse = async (user, res, statusCode = 200, extraData = {}) => 
 import {
   saveSignupOtp,
   saveResetOtp,
+  saveAdminLoginOtp,
+  saveAdminSignupOtp,
   verifyOtp,
   deleteOtp,
   getResendCooldown,
@@ -196,7 +198,7 @@ const authUser = async (req, res, next) => {
   }
 };
 
-// @desc    Register a new admin account (direct, no OTP)
+// @desc    Register a new admin account — send OTP
 // @route   POST /api/auth/admin/register
 // @access  Public (optionally gated by ADMIN_SIGNUP_SECRET)
 const adminRegister = async (req, res, next) => {
@@ -208,9 +210,9 @@ const adminRegister = async (req, res, next) => {
       throw new Error('Please provide name, email, and password');
     }
 
-    if (password.length < 6) {
+    if (password.length < 8) {
       res.status(400);
-      throw new Error('Password must be at least 6 characters');
+      throw new Error('Password must be at least 8 characters');
     }
 
     // Optional protection: if ADMIN_SIGNUP_SECRET is set, require it.
@@ -226,41 +228,217 @@ const adminRegister = async (req, res, next) => {
       throw new Error('An account with this email already exists');
     }
 
-    const user = await User.create({
-      name,
-      email,
-      password,
-      isAdmin: true,
-      isVerified: true,
-    });
+    const otp = await saveAdminSignupOtp({ email, name, password });
+    await sendOtpEmail({ to: email, otp, purpose: 'admin-signup' });
 
-    await sendAuthResponse(user, res, 201);
+    res.status(201).json({
+      message: 'OTP sent to your email',
+      email,
+      resendTime: getOtpResendTime(),
+    });
   } catch (error) {
+    if (error.statusCode) {
+      res.status(error.statusCode);
+      return res.json({
+        message: error.message,
+        cooldown: error.cooldown,
+      });
+    }
     next(error);
   }
 };
 
-// @desc    Admin login & get token
+// @desc    Verify admin signup OTP and create account
+// @route   POST /api/auth/admin/verify-signup-otp
+// @access  Public
+const verifyAdminSignupOtp = async (req, res, next) => {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      res.status(400);
+      throw new Error('Please provide email and OTP');
+    }
+
+    const record = await verifyOtp({ email, otp, purpose: 'admin-signup' });
+
+    const userExists = await User.findOne({ email });
+    if (userExists) {
+      await deleteOtp(record);
+      res.status(400);
+      throw new Error('An account with this email already exists');
+    }
+
+    const user = await User.create({
+      name: record.name,
+      email: record.email,
+      password: record.password,
+      isAdmin: true,
+      isVerified: true,
+    });
+
+    await deleteOtp(record);
+
+    await sendAuthResponse(user, res, 201);
+  } catch (error) {
+    if (error.statusCode) {
+      res.status(error.statusCode);
+      return res.json({ message: error.message });
+    }
+    next(error);
+  }
+};
+
+// @desc    Resend admin signup OTP
+// @route   POST /api/auth/admin/resend-signup-otp
+// @access  Public
+const resendAdminSignupOtp = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      res.status(400);
+      throw new Error('Please provide email');
+    }
+
+    const existing = await OTP.findOne({ email, purpose: 'admin-signup' });
+
+    if (!existing) {
+      res.status(400);
+      throw new Error('No pending admin registration found for this email');
+    }
+
+    const otp = await saveAdminSignupOtp({
+      email,
+      name: existing.name,
+      password: existing.password,
+    });
+    await sendOtpEmail({ to: email, otp, purpose: 'admin-signup' });
+
+    res.json({
+      message: 'OTP resent successfully',
+      resendTime: getOtpResendTime(),
+    });
+  } catch (error) {
+    if (error.statusCode) {
+      res.status(error.statusCode);
+      return res.json({
+        message: error.message,
+        cooldown: error.cooldown,
+      });
+    }
+    next(error);
+  }
+};
+
+// @desc    Admin login step 1 — verify credentials and send OTP
 // @route   POST /api/auth/admin/login
 // @access  Public
-const adminLogin = async (req, res, next) => {
+const adminLoginSendOtp = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
+    if (!email || !password) {
+      res.status(400);
+      throw new Error('Please provide email and password');
+    }
+
     const user = await User.findOne({ email });
 
-    if (user && (await user.matchPassword(password))) {
-      if (!user.isAdmin) {
-        res.status(403);
-        throw new Error('This account does not have admin privileges');
-      }
-
-      await sendAuthResponse(user, res, 200);
-    } else {
+    if (!user || !(await user.matchPassword(password))) {
       res.status(401);
       throw new Error('Invalid email or password');
     }
+
+    if (!user.isAdmin) {
+      res.status(403);
+      throw new Error('This account does not have admin privileges');
+    }
+
+    const otp = await saveAdminLoginOtp(email);
+    await sendOtpEmail({ to: email, otp, purpose: 'admin-login' });
+
+    res.json({
+      message: 'OTP sent to your email',
+      email,
+      resendTime: getOtpResendTime(),
+    });
   } catch (error) {
+    if (error.statusCode) {
+      res.status(error.statusCode);
+      return res.json({
+        message: error.message,
+        cooldown: error.cooldown,
+      });
+    }
+    next(error);
+  }
+};
+
+// @desc    Admin login step 2 — verify OTP and issue token
+// @route   POST /api/auth/admin/verify-otp
+// @access  Public
+const adminLoginVerifyOtp = async (req, res, next) => {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      res.status(400);
+      throw new Error('Please provide email and OTP');
+    }
+
+    const user = await User.findOne({ email });
+    if (!user || !user.isAdmin) {
+      res.status(403);
+      throw new Error('Admin account not found');
+    }
+
+    const record = await verifyOtp({ email, otp, purpose: 'admin-login' });
+    await deleteOtp(record);
+
+    await sendAuthResponse(user, res, 200);
+  } catch (error) {
+    if (error.statusCode) {
+      res.status(error.statusCode);
+      return res.json({ message: error.message });
+    }
+    next(error);
+  }
+};
+
+// @desc    Admin login — resend OTP
+// @route   POST /api/auth/admin/resend-otp
+// @access  Public
+const adminResendLoginOtp = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      res.status(400);
+      throw new Error('Please provide email');
+    }
+
+    const user = await User.findOne({ email });
+    if (!user || !user.isAdmin) {
+      res.status(403);
+      throw new Error('Admin account not found');
+    }
+
+    const otp = await saveAdminLoginOtp(email);
+    await sendOtpEmail({ to: email, otp, purpose: 'admin-login' });
+
+    res.json({
+      message: 'OTP resent successfully',
+      resendTime: getOtpResendTime(),
+    });
+  } catch (error) {
+    if (error.statusCode) {
+      res.status(error.statusCode);
+      return res.json({
+        message: error.message,
+        cooldown: error.cooldown,
+      });
+    }
     next(error);
   }
 };
@@ -449,7 +627,11 @@ export {
   resendOtp,
   authUser,
   adminRegister,
-  adminLogin,
+  verifyAdminSignupOtp,
+  resendAdminSignupOtp,
+  adminLoginSendOtp,
+  adminLoginVerifyOtp,
+  adminResendLoginOtp,
   forgotPassword,
   verifyResetOtp,
   resetPassword,
