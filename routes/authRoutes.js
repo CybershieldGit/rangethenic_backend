@@ -5,7 +5,11 @@ import {
   resendOtp,
   authUser,
   adminRegister,
-  adminLogin,
+  verifyAdminSignupOtp,
+  resendAdminSignupOtp,
+  adminLoginSendOtp,
+  adminLoginVerifyOtp,
+  adminResendLoginOtp,
   forgotPassword,
   verifyResetOtp,
   resetPassword,
@@ -23,9 +27,14 @@ router.post('/login', authUser);
 router.post('/refresh', refreshAccessToken);
 router.post('/logout', logoutUser);
 
-// Admin auth (direct, no OTP)
+// Admin auth
 router.post('/admin/register', adminRegister);
-router.post('/admin/login', adminLogin);
+router.post('/admin/verify-signup-otp', verifyAdminSignupOtp);
+router.post('/admin/resend-signup-otp', resendAdminSignupOtp);
+router.post('/admin/login', adminLoginSendOtp);         // Step 1: verify creds → send OTP
+router.post('/admin/verify-otp', adminLoginVerifyOtp);  // Step 2: verify OTP → get token
+router.post('/admin/resend-otp', adminResendLoginOtp);  // Resend login OTP
+
 
 // Password reset (shared)
 router.post('/forgot-password', forgotPassword);
@@ -33,3 +42,4 @@ router.post('/verify-reset-otp', verifyResetOtp);
 router.post('/reset-password', resetPassword);
 
 export default router;
+

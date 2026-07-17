@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { Noto_Serif } from "next/font/google";
@@ -141,6 +141,23 @@ export default function AdminLayout({ children }) {
   const [adminUser, setAdminUser] = useState(null);
   const [adminToken, setAdminToken] = useState(null);
 
+  // Login step: 'credentials' | 'otp' | 'forgot-password' | 'forgot-password-otp' | 'reset-password'
+  const [loginStep, setLoginStep] = useState('credentials');
+  const [pendingEmail, setPendingEmail] = useState('');
+
+  // OTP state
+  const [otp, setOtp] = useState(Array(6).fill(''));
+  const [otpCooldown, setOtpCooldown] = useState(0);
+  const [resendLoading, setResendLoading] = useState(false);
+  const otpRefs = useRef([]);
+
+  // Reset password state
+  const [resetToken, setResetToken] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [resetSuccessMsg, setResetSuccessMsg] = useState("");
+
   // Admin login/signup form states
   const [isAdminRegister, setIsAdminRegister] = useState(false);
   const [authError, setAuthError] = useState("");
@@ -152,6 +169,7 @@ export default function AdminLayout({ children }) {
     email: "",
     password: "",
   });
+
 
   // Verify isolated admin session on mount
   useEffect(() => {
@@ -177,6 +195,15 @@ export default function AdminLayout({ children }) {
     setLoading(false);
   }, []);
 
+  // OTP cooldown timer
+  useEffect(() => {
+    if (otpCooldown <= 0) return;
+    const timer = window.setInterval(() => {
+      setOtpCooldown((prev) => Math.max(0, prev - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [otpCooldown]);
+
   // Isolated Authentication Handler (isolated from customer session)
   const handleAuthSubmit = async (e) => {
     e.preventDefault();
@@ -184,49 +211,217 @@ export default function AdminLayout({ children }) {
     setAuthLoading(true);
 
     try {
-      const endpoint = isAdminRegister ? "/api/auth/admin/register" : "/api/auth/admin/login";
-      const url = `${API_URL}${endpoint}`;
+      if (isAdminRegister) {
+        // Step 1 Register: send OTP
+        const url = `${API_URL}/api/auth/admin/register`;
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: formData.name, email: formData.email, password: formData.password }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Registration failed");
 
-      const bodyData = isAdminRegister
-        ? { name: formData.name, email: formData.email, password: formData.password }
-        : { email: formData.email, password: formData.password };
-
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(bodyData),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message || "Authentication failed");
-      }
-
-      const token = data.token;
-      const userObj = data.user || data;
-
-      if (!token) {
-        throw new Error("No token returned from server");
-      }
-
-      // Verify Admin privileges
-      if (userObj.isAdmin === true) {
-        // Save to completely separate admin credentials
-        localStorage.setItem("adminToken", token);
-        localStorage.setItem("adminUser", JSON.stringify(userObj));
-
-        setAdminToken(token);
-        setAdminUser(userObj);
-        setIsAuthorized(true);
+        setPendingEmail(formData.email);
+        setOtpCooldown(data.resendTime || 60);
+        setOtp(Array(6).fill(''));
+        setLoginStep('otp');
+        setTimeout(() => otpRefs.current[0]?.focus(), 50);
       } else {
-        throw new Error("This account does not have Admin privileges. Please use a valid Admin account.");
+        // Step 1 Login: verify credentials → receive OTP
+        const url = `${API_URL}/api/auth/admin/login`;
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: formData.email, password: formData.password }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Authentication failed");
+
+        setPendingEmail(formData.email);
+        setOtpCooldown(data.resendTime || 60);
+        setOtp(Array(6).fill(''));
+        setLoginStep('otp');
+        setTimeout(() => otpRefs.current[0]?.focus(), 50);
       }
     } catch (err) {
       setAuthError(err.message || "Authentication failed");
     } finally {
       setAuthLoading(false);
     }
+  };
+
+  // Step 2: verify OTP → get token
+  const handleOtpVerify = async (e) => {
+    e.preventDefault();
+    const otpValue = otp.join('');
+    if (otpValue.length !== 6) {
+      setAuthError('Please enter the complete 6-digit code');
+      return;
+    }
+    setAuthError('');
+    setAuthLoading(true);
+    try {
+      if (loginStep === 'forgot-password-otp') {
+        // Verify reset OTP
+        const res = await fetch(`${API_URL}/api/auth/verify-reset-otp`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: pendingEmail, otp: otpValue }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || "OTP verification failed");
+        setResetToken(data.resetToken);
+        setLoginStep('reset-password');
+      } else {
+        const endpoint = isAdminRegister ? '/api/auth/admin/verify-signup-otp' : '/api/auth/admin/verify-otp';
+        const res = await fetch(`${API_URL}${endpoint}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: pendingEmail, otp: otpValue }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'OTP verification failed');
+
+        const token = data.token;
+        const userObj = data.user || data;
+        if (!token) throw new Error('No token returned from server');
+        if (userObj.isAdmin !== true) throw new Error('This account does not have Admin privileges.');
+
+        localStorage.setItem('adminToken', token);
+        localStorage.setItem('adminUser', JSON.stringify(userObj));
+        setAdminToken(token);
+        setAdminUser(userObj);
+        setIsAuthorized(true);
+      }
+    } catch (err) {
+      setAuthError(err.message || 'OTP verification failed');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  // Resend admin OTP (login or signup or reset)
+  const handleResendOtp = async () => {
+    if (otpCooldown > 0 || resendLoading) return;
+    setAuthError('');
+    setResendLoading(true);
+    try {
+      let res;
+      if (loginStep === 'forgot-password-otp') {
+        res = await fetch(`${API_URL}/api/auth/resend-otp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: pendingEmail, purpose: 'reset' }),
+        });
+      } else {
+        const endpoint = isAdminRegister ? '/api/auth/admin/resend-signup-otp' : '/api/auth/admin/resend-otp';
+        res = await fetch(`${API_URL}${endpoint}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: pendingEmail }),
+        });
+      }
+      const data = await res.json();
+      if (!res.ok) {
+        setAuthError(data.message || 'Failed to resend OTP');
+        if (data.cooldown) setOtpCooldown(data.cooldown);
+        return;
+      }
+      setOtpCooldown(data.resendTime || 60);
+      setOtp(Array(6).fill(''));
+      setTimeout(() => otpRefs.current[0]?.focus(), 50);
+    } catch (err) {
+      setAuthError(err.message || 'Failed to resend OTP');
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
+  // Forgot password email submission
+  const handleForgotPasswordSubmit = async (e) => {
+    e.preventDefault();
+    setAuthError("");
+    setAuthLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: pendingEmail }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to send reset code");
+      
+      setOtpCooldown(data.resendTime || 60);
+      setOtp(Array(6).fill(''));
+      setLoginStep('forgot-password-otp');
+      setTimeout(() => otpRefs.current[0]?.focus(), 50);
+    } catch (err) {
+      setAuthError(err.message || "Failed to send reset code");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  // Set new password submit
+  const handleResetPasswordSubmit = async (e) => {
+    e.preventDefault();
+    if (newPassword.length < 8) {
+      setAuthError("Password must be at least 8 characters");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setAuthError("Passwords do not match");
+      return;
+    }
+    setAuthError("");
+    setAuthLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/auth/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resetToken, password: newPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to reset password");
+      setResetSuccessMsg("Password reset successfully! You can now log in.");
+      setNewPassword("");
+      setConfirmPassword("");
+      setTimeout(() => {
+        setResetSuccessMsg("");
+        setLoginStep('credentials');
+      }, 3000);
+    } catch (err) {
+      setAuthError(err.message || "Failed to reset password");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+
+  // OTP digit input helpers
+  const handleOtpChange = (index, raw) => {
+    const digit = raw.replace(/\D/g, '').slice(-1);
+    const next = [...otp];
+    next[index] = digit;
+    setOtp(next);
+    if (digit && index < 5) otpRefs.current[index + 1]?.focus();
+  };
+
+  const handleOtpKeyDown = (index, e) => {
+    if (e.key === 'Backspace' && !otp[index] && index > 0) {
+      otpRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleOtpPaste = (e) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    if (!pasted) return;
+    const next = Array.from({ length: 6 }, (_, i) => pasted[i] || '');
+    setOtp(next);
+    const focusIndex = Math.min(pasted.length, 5);
+    otpRefs.current[focusIndex]?.focus();
   };
 
   const handleAdminLogout = () => {
@@ -304,10 +499,16 @@ export default function AdminLayout({ children }) {
 
                 <div className="relative text-center">
                   <h1 className="font-serif text-[36px] font-bold leading-tight text-[#420001]" style={{ fontFamily: "var(--font-noto-serif), Georgia, serif" }}>
-                    {isAdminRegister ? "Create Account" : "Welcome"}
+                    {loginStep === 'otp' || loginStep === 'forgot-password-otp' ? "Verify OTP" : (loginStep === 'forgot-password' ? "Forgot Password" : (loginStep === 'reset-password' ? "Create New Password" : (isAdminRegister ? "Create Account" : "Welcome")))}
                   </h1>
                   <p className="mt-2 font-sans text-[16px] leading-relaxed text-[#8E8E8E]">
-                    {isAdminRegister ? "Sign Up discover our exclusive collection" : "Login to continue to your account"}
+                    {loginStep === 'otp' || loginStep === 'forgot-password-otp'
+                      ? "Check your email for the verification code"
+                      : (loginStep === 'forgot-password'
+                      ? "Enter your admin email to receive a reset code"
+                      : (loginStep === 'reset-password'
+                      ? "Please create a new password for your admin account"
+                      : (isAdminRegister ? "Sign Up discover our exclusive collection" : "Login to continue to your account")))}
                   </p>
                   <img
                     src="/historical_seperator.svg"
@@ -316,129 +517,315 @@ export default function AdminLayout({ children }) {
                   />
                 </div>
 
+
                 <div className="relative mt-6 flex flex-1 flex-col">
                   {authError && (
                     <div className="mb-5 flex items-center gap-3 bg-[#FF00001A] px-4 py-3">
                       <AlertCircle size={28} className="mt-0.5 shrink-0 text-[#420001]" />
                       <div className="text-left">
-                        <p className="font-sans text-sm font-semibold text-[#420001]">{isAdminRegister ? "Registration failed" : "Login failed"}</p>
+                        <p className="font-sans text-sm font-semibold text-[#420001]">
+                          {loginStep === 'otp' || loginStep === 'forgot-password-otp' ? 'Verification failed' : (isAdminRegister ? 'Registration failed' : 'Failed')}
+                        </p>
                         <p className="mt-0.5 font-sans text-[10px] text-[#420001]">{authError}</p>
                       </div>
                     </div>
                   )}
 
-                  <form onSubmit={handleAuthSubmit} className="flex flex-1 flex-col">
-                    <div className="space-y-3">
-                      {isAdminRegister && (
+                  {resetSuccessMsg && (
+                    <div className="mb-5 bg-emerald-50 border border-emerald-100 text-emerald-700 text-sm p-4 font-medium text-center">
+                      ✅ {resetSuccessMsg}
+                    </div>
+                  )}
+
+                  {/* ── STEP 1: Credentials form ─────────────────────── */}
+                  {loginStep === 'credentials' && (
+                    <form onSubmit={handleAuthSubmit} className="flex flex-1 flex-col">
+                      <div className="space-y-3">
+                        {isAdminRegister && (
+                          <div className="relative w-full">
+                            <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#A89E96]">
+                              <User size={17} strokeWidth={1.5} />
+                            </span>
+                            <input
+                              type="text"
+                              name="name"
+                              required
+                              value={formData.name}
+                              onChange={handleInputChange}
+                              placeholder="Enter your full name"
+                              className="h-[46px] w-full rounded-none border border-[#BD8A3C4D] bg-[#BD8A3C0A] font-sans text-sm text-[#4a3f38] placeholder:text-[#A89E96] focus:border-[#420001] focus:outline-none focus:ring-0 pl-10 pr-3.5"
+                            />
+                          </div>
+                        )}
+
                         <div className="relative w-full">
                           <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#A89E96]">
-                            <User size={17} strokeWidth={1.5} />
+                            <Mail size={17} strokeWidth={1.5} />
                           </span>
                           <input
-                            type="text"
-                            name="name"
+                            type="email"
+                            name="email"
                             required
-                            value={formData.name}
+                            value={formData.email}
                             onChange={handleInputChange}
-                            placeholder="Enter your full name"
+                            placeholder="Enter your email"
                             className="h-[46px] w-full rounded-none border border-[#BD8A3C4D] bg-[#BD8A3C0A] font-sans text-sm text-[#4a3f38] placeholder:text-[#A89E96] focus:border-[#420001] focus:outline-none focus:ring-0 pl-10 pr-3.5"
                           />
                         </div>
-                      )}
 
-                      <div className="relative w-full">
-                        <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#A89E96]">
-                          <Mail size={17} strokeWidth={1.5} />
-                        </span>
-                        <input
-                          type="email"
-                          name="email"
-                          required
-                          value={formData.email}
-                          onChange={handleInputChange}
-                          placeholder="Enter your email"
-                          className="h-[46px] w-full rounded-none border border-[#BD8A3C4D] bg-[#BD8A3C0A] font-sans text-sm text-[#4a3f38] placeholder:text-[#A89E96] focus:border-[#420001] focus:outline-none focus:ring-0 pl-10 pr-3.5"
-                        />
+                        <div>
+                          <div className="relative w-full">
+                            <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#A89E96]">
+                              <Lock size={17} strokeWidth={1.5} />
+                            </span>
+                            <input
+                              type={showPassword ? 'text' : 'password'}
+                              name="password"
+                              required
+                              value={formData.password}
+                              onChange={handleInputChange}
+                              placeholder="Enter your password"
+                              className="h-[46px] w-full rounded-none border border-[#BD8A3C4D] bg-[#BD8A3C0A] font-sans text-sm text-[#4a3f38] placeholder:text-[#A89E96] focus:border-[#420001] focus:outline-none focus:ring-0 pl-10 pr-10"
+                            />
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2">
+                              <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="text-[#A89E96] hover:text-[#420001] cursor-pointer bg-transparent border-0 p-0"
+                                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                              >
+                                {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                              </button>
+                            </span>
+                          </div>
+                          {!isAdminRegister && (
+                            <div className="mt-2 text-right">
+                              <button
+                                type="button"
+                                onClick={() => { setLoginStep('forgot-password'); setAuthError(''); }}
+                                className="font-sans text-[14px] font-medium text-[#420001] hover:underline bg-transparent border-0 p-0 cursor-pointer"
+                              >
+                                Forgot Password?
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
 
+                      {isAdminRegister && (
+                        <p className="mt-3 text-left font-sans text-[11px] leading-relaxed text-[#9A9088]">
+                          By proceeding ahead you agreed our Terms &amp; Conditions.
+                        </p>
+                      )}
+
+                      <div className="mt-5">
+                        <button
+                          type="submit"
+                          disabled={authLoading}
+                          className="h-[46px] w-full rounded-none bg-[#420001] font-sans text-[16px] font-semibold tracking-wide text-white transition-colors hover:bg-[#2e0001] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer border-0"
+                        >
+                          {authLoading
+                            ? (isAdminRegister ? 'Creating Account...' : 'Verifying...')
+                            : (isAdminRegister ? 'Register' : 'Continue')}
+                        </button>
+                      </div>
+                    </form>
+                  )}
+
+
+                  {/* ── STEP 2: OTP verification form ────────────────── */}
+                  {(loginStep === 'otp' || loginStep === 'forgot-password-otp') && (
+                    <form onSubmit={handleOtpVerify} className="flex flex-1 flex-col">
+                      <p className="mb-5 text-center font-sans text-sm leading-relaxed text-[#717171]">
+                        We sent a 6-digit verification code to{' '}
+                        <span className="font-semibold text-[#420001]">{pendingEmail}</span>.
+                        Enter it below to continue.
+                      </p>
+
+                      {/* 6-digit OTP boxes */}
+                      <div className="flex justify-center gap-2 mb-5">
+                        {Array.from({ length: 6 }).map((_, index) => (
+                          <input
+                            key={index}
+                            ref={(el) => { otpRefs.current[index] = el; }}
+                            type="text"
+                            inputMode="numeric"
+                            maxLength={1}
+                            value={otp[index] || ''}
+                            disabled={authLoading}
+                            onChange={(e) => handleOtpChange(index, e.target.value)}
+                            onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                            onPaste={handleOtpPaste}
+                            className={`h-12 w-11 rounded-none border bg-[#BD8A3C0A] text-center font-sans text-base text-[#4a3f38] focus:outline-none focus:ring-0 disabled:opacity-60 ${
+                              authError ? 'border-red-400 focus:border-red-400' : 'border-[#BD8A3C4D] focus:border-[#420001]'
+                            }`}
+                          />
+                        ))}
+                      </div>
+
+                      {/* Resend row */}
+                      <div className="flex items-center justify-between gap-3 mb-5">
+                        <span className="font-sans text-sm text-[#9a8f88]">Didn&apos;t receive the code?</span>
+                        {otpCooldown > 0 ? (
+                          <span className="font-sans text-sm font-semibold text-[#420001]">
+                            Resend OTP ({String(Math.floor(otpCooldown / 60)).padStart(2, '0')}:{String(otpCooldown % 60).padStart(2, '0')})
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={handleResendOtp}
+                            disabled={resendLoading}
+                            className="font-sans text-sm font-semibold text-[#420001] hover:underline disabled:opacity-60 cursor-pointer bg-transparent border-0 p-0"
+                          >
+                            {resendLoading ? 'Sending...' : 'Resend OTP'}
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="mt-auto">
+                        <button
+                          type="submit"
+                          disabled={authLoading}
+                          className="h-[46px] w-full rounded-none bg-[#420001] font-sans text-[16px] font-semibold tracking-wide text-white transition-colors hover:bg-[#2e0001] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer border-0"
+                        >
+                          {authLoading ? 'Verifying...' : 'Confirm OTP'}
+                        </button>
+                      </div>
+
+                      <p className="mt-6 text-center">
+                        <button
+                          type="button"
+                          onClick={() => { setLoginStep('credentials'); setAuthError(''); setOtp(Array(6).fill('')); }}
+                          className="font-sans text-sm font-semibold text-[#420001] hover:underline cursor-pointer bg-transparent border-0 p-0"
+                        >
+                          ← Back to Login
+                        </button>
+                      </p>
+                    </form>
+                  )}
+
+                  {/* ── STEP 3: Forgot password email input ───────────── */}
+                  {loginStep === 'forgot-password' && (
+                    <form onSubmit={handleForgotPasswordSubmit} className="flex flex-1 flex-col">
+                      <div className="space-y-4">
+                        <div className="relative w-full">
+                          <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#A89E96]">
+                            <Mail size={17} strokeWidth={1.5} />
+                          </span>
+                          <input
+                            type="email"
+                            required
+                            value={pendingEmail}
+                            onChange={(e) => setPendingEmail(e.target.value)}
+                            placeholder="Enter your registered email"
+                            className="h-[46px] w-full rounded-none border border-[#BD8A3C4D] bg-[#BD8A3C0A] font-sans text-sm text-[#4a3f38] placeholder:text-[#A89E96] focus:border-[#420001] focus:outline-none focus:ring-0 pl-10 pr-3.5"
+                          />
+                        </div>
+
+                        <button
+                          type="submit"
+                          disabled={authLoading}
+                          className="h-[46px] w-full rounded-none bg-[#420001] font-sans text-[16px] font-semibold tracking-wide text-white transition-colors hover:bg-[#2e0001] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer border-0"
+                        >
+                          {authLoading ? 'Sending OTP...' : 'Send OTP'}
+                        </button>
+                      </div>
+
+                      <p className="mt-auto pt-6 text-center">
+                        <button
+                          type="button"
+                          onClick={() => { setLoginStep('credentials'); setAuthError(''); }}
+                          className="font-sans text-sm font-semibold text-[#420001] hover:underline cursor-pointer bg-transparent border-0 p-0"
+                        >
+                          ← Back to Login
+                        </button>
+                      </p>
+                    </form>
+                  )}
+
+                  {/* ── STEP 4: Set new password ──────────────────────── */}
+                  {loginStep === 'reset-password' && !resetSuccessMsg && (
+                    <form onSubmit={handleResetPasswordSubmit} className="flex flex-1 flex-col space-y-3">
                       <div>
                         <div className="relative w-full">
                           <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#A89E96]">
                             <Lock size={17} strokeWidth={1.5} />
                           </span>
                           <input
-                            type={showPassword ? 'text' : 'password'}
-                            name="password"
+                            type={showPassword ? "text" : "password"}
                             required
-                            value={formData.password}
-                            onChange={handleInputChange}
-                            placeholder="Enter your password"
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            placeholder="Enter your new password"
                             className="h-[46px] w-full rounded-none border border-[#BD8A3C4D] bg-[#BD8A3C0A] font-sans text-sm text-[#4a3f38] placeholder:text-[#A89E96] focus:border-[#420001] focus:outline-none focus:ring-0 pl-10 pr-10"
                           />
                           <span className="absolute right-3 top-1/2 -translate-y-1/2">
-                            <button
-                              type="button"
-                              onClick={() => setShowPassword(!showPassword)}
-                              className="text-[#A89E96] hover:text-[#420001] cursor-pointer bg-transparent border-0 p-0"
-                              aria-label={showPassword ? 'Hide password' : 'Show password'}
-                            >
+                            <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-[#A89E96] hover:text-[#420001] cursor-pointer bg-transparent border-0 p-0">
                               {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
                             </button>
                           </span>
                         </div>
-                        {!isAdminRegister && (
-                          <div className="mt-2 text-right">
-                            <Link
-                              href="/reset-password"
-                              className="font-sans text-[14px] font-medium text-[#420001] hover:underline"
-                            >
-                              Forgot Password?
-                            </Link>
-                          </div>
-                        )}
+                        <p className="mt-2 text-left font-sans text-[11px] text-[#9A9088]">Use 8 or more characters with a mix of letters, numbers &amp; symbols.</p>
                       </div>
-                    </div>
 
-                    {isAdminRegister && (
-                      <p className="mt-3 text-left font-sans text-[11px] leading-relaxed text-[#9A9088]">
-                        By proceeding ahead you agreed our Terms &amp; Conditions.
-                      </p>
-                    )}
+                      <div className="relative w-full">
+                        <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#A89E96]">
+                          <Lock size={17} strokeWidth={1.5} />
+                        </span>
+                        <input
+                          type={showConfirmPassword ? "text" : "password"}
+                          required
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          placeholder="Confirm your new password"
+                          className="h-[46px] w-full rounded-none border border-[#BD8A3C4D] bg-[#BD8A3C0A] font-sans text-sm text-[#4a3f38] placeholder:text-[#A89E96] focus:border-[#420001] focus:outline-none focus:ring-0 pl-10 pr-10"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2">
+                          <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="text-[#A89E96] hover:text-[#420001] cursor-pointer bg-transparent border-0 p-0">
+                            {showConfirmPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                          </button>
+                        </span>
+                      </div>
 
-                    <div className="mt-5">
-                      <button
-                        type="submit"
-                        disabled={authLoading}
-                        className="h-[46px] w-full rounded-none bg-[#420001] font-sans text-[16px] font-semibold tracking-wide text-white transition-colors hover:bg-[#2e0001] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer border-0"
-                      >
-                        {authLoading ? (isAdminRegister ? "Sending OTP..." : "Logging in...") : (isAdminRegister ? "Register" : "Login")}
-                      </button>
-                    </div>
-                  </form>
-
-                  <p className="mt-auto pt-6 text-center font-sans text-[16px] text-[#8E8E8E]">
-                    {isAdminRegister ? (
-                      <>
-                        Already have an account?{' '}
+                      <div className="pt-2">
                         <button
-                          onClick={() => { setIsAdminRegister(false); setAuthError(""); }}
-                          className="font-bold text-[#420001] hover:underline cursor-pointer bg-transparent border-0 p-0"
+                          type="submit"
+                          disabled={authLoading}
+                          className="h-[46px] w-full rounded-none bg-[#420001] font-sans text-[16px] font-semibold tracking-wide text-white transition-colors hover:bg-[#2e0001] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer border-0"
                         >
-                          Login
+                          {authLoading ? "Resetting..." : "Reset Password"}
                         </button>
-                      </>
-                    ) : (
-                      <>
-                        Don&apos;t have account?{' '}
-                        <button
-                          onClick={() => { setIsAdminRegister(true); setAuthError(""); }}
-                          className="font-bold text-[#420001] hover:underline cursor-pointer bg-transparent border-0 p-0"
-                        >
-                          Register
-                        </button>
-                      </>
-                    )}
-                  </p>
+                      </div>
+                    </form>
+                  )}
+
+
+                  {/* Toggle login/register — only shown on credentials step */}
+                  {loginStep === 'credentials' && (
+                    <p className="mt-auto pt-6 text-center font-sans text-[16px] text-[#8E8E8E]">
+                      {isAdminRegister ? (
+                        <>
+                          Already have an account?{' '}
+                          <button
+                            onClick={() => { setIsAdminRegister(false); setAuthError(""); }}
+                            className="font-bold text-[#420001] hover:underline cursor-pointer bg-transparent border-0 p-0"
+                          >
+                            Login
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          Don&apos;t have account?{' '}
+                          <button
+                            onClick={() => { setIsAdminRegister(true); setAuthError(""); }}
+                            className="font-bold text-[#420001] hover:underline cursor-pointer bg-transparent border-0 p-0"
+                          >
+                            Register
+                          </button>
+                        </>
+                      )}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
